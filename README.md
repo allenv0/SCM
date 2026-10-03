@@ -157,6 +157,10 @@ the model ever runs.
   renameable, each restored exactly as saved.
 - Five semantic views behind remappable shortcuts (⌘1–⌘5 by default), plus
   ⌘I import / AI Insights, ⌘, for Settings.
+- **Search stays in the selected tab**: pick Screenshots, Email, Videos, or
+  any saved tab and results are filtered to it — scope first, then search.
+  In LLMs chat the same idea is explicit: leading `/screenshots`, `/videos`,
+  `/email` narrow the corpus before the model ever runs.
 
 ## Email tab
 
