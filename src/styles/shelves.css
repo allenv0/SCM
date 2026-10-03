@@ -1,0 +1,338 @@
+/* Unified Spine (DVD + Book shelves) — spine, covers, accent variants, reduced motion. */
+
+/* ── Unified Spine (DVD + Book shelves) ─────────────── */
+.spine-scroll-container {
+	scroll-behavior: smooth;
+	min-height: 10rem;
+	position: relative;
+	-webkit-overflow-scrolling: touch;
+	scroll-snap-type: x proximity;
+}
+
+.spine-item-wrapper {
+	width: var(--spine-w, 3.3rem);
+	flex-shrink: 0;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	padding-top: 0.625rem;
+}
+
+.spine-container {
+	width: var(--spine-w, 3.3rem);
+	height: 9rem;
+	position: relative;
+	perspective: 900px;
+	scroll-snap-align: center;
+}
+
+.spine-height-a {
+	height: 9rem;
+}
+
+.spine-height-b {
+	height: 8.6rem;
+}
+
+.spine-height-c {
+	height: 9.35rem;
+}
+
+.spine {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	cursor: pointer;
+	overflow: hidden;
+	border-radius: 0.58rem;
+	border-width: 1px;
+	border-style: solid;
+	background: var(--spine-base-bg, rgb(39 39 42));
+	box-shadow:
+		0 2px 4px rgb(15 23 42 / 0.26),
+		inset 1px 0 0 rgb(255 255 255 / 0.16),
+		inset -3px 0 8px rgb(0 0 0 / 0.28);
+	transform: translateY(0) rotateX(0deg);
+	transform-origin: bottom center;
+	transition:
+		transform 180ms ease,
+		box-shadow 180ms ease,
+		border-color 180ms ease,
+		filter 180ms ease;
+}
+
+.spine::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	background:
+		linear-gradient(90deg, rgb(255 255 255 / 0.18), transparent 18%),
+		linear-gradient(270deg, rgb(0 0 0 / 0.24), transparent 26%);
+	pointer-events: none;
+}
+
+.spine:hover {
+	filter: saturate(1.08) brightness(1.04);
+	transform: translateY(-0.28rem) rotateX(2deg);
+	box-shadow:
+		0 10px 18px rgb(15 23 42 / 0.28),
+		0 0 18px var(--spine-accent-glow),
+		inset 1px 0 0 rgb(255 255 255 / 0.2),
+		inset -3px 0 8px rgb(0 0 0 / 0.28);
+}
+
+.spine:focus-visible {
+	outline: 2px solid var(--spine-focus, rgb(245 158 11));
+	outline-offset: 3px;
+}
+
+.spine-cover {
+	position: relative;
+	height: 100%;
+	width: var(--spine-cover-w, 42%);
+	overflow: hidden;
+	filter: var(--spine-cover-filter, saturate(0.95) contrast(1.02));
+}
+
+.spine-title-section {
+	display: flex;
+	height: 100%;
+	width: var(--spine-title-w, 58%);
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 0.12), transparent 18%),
+		linear-gradient(
+			135deg,
+			var(--spine-accent-start),
+			var(--spine-accent-mid) 52%,
+			var(--spine-accent-end)
+		);
+	padding: 0.375rem 0.28rem 1.65rem;
+}
+
+.spine-title {
+	display: block;
+	max-height: 7.1rem;
+	user-select: none;
+	text-align: center;
+	font-size: 10.5px;
+	font-weight: 800;
+	letter-spacing: 0.01em;
+	line-height: 1.18;
+	color: rgb(255 255 255 / 0.94);
+	text-shadow: 0 1px 2px rgb(0 0 0 / 0.42);
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
+}
+
+.spine-meta {
+	position: absolute;
+	right: var(--spine-meta-right, 0.34rem);
+	bottom: 0.34rem;
+	z-index: 4;
+	border-radius: 9999px;
+	border: 1px solid rgb(255 255 255 / 0.22);
+	background: rgb(0 0 0 / 0.24);
+	padding: 0.08rem 0.24rem;
+	font-size: var(--spine-meta-fs, 0.48rem);
+	font-weight: 900;
+	line-height: 1;
+	color: var(--spine-meta-color, rgb(255 255 255 / 0.86));
+	backdrop-filter: blur(4px);
+}
+
+.spine-disc-edge {
+	position: absolute;
+	bottom: 0;
+	left: 0.18rem;
+	right: 0.18rem;
+	height: 0.34rem;
+	z-index: 3;
+	border-top: 1px solid rgb(255 255 255 / 0.18);
+	background: repeating-linear-gradient(
+		90deg,
+		rgb(255 255 255 / 0.26) 0,
+		rgb(255 255 255 / 0.26) 1px,
+		rgb(15 23 42 / 0.17) 1px,
+		rgb(15 23 42 / 0.17) 3px
+	);
+	opacity: 0.42;
+	pointer-events: none;
+}
+
+.spine-pages {
+	position: absolute;
+	bottom: 0;
+	left: 0.18rem;
+	right: 0.18rem;
+	height: 0.34rem;
+	z-index: 3;
+	border-top: 1px solid rgb(255 255 255 / 0.18);
+	background: repeating-linear-gradient(
+		to bottom,
+		rgb(255 255 255 / 0.34) 0,
+		rgb(255 255 255 / 0.34) 1px,
+		rgb(15 23 42 / 0.15) 1px,
+		rgb(15 23 42 / 0.15) 2px
+	);
+	opacity: 0.42;
+	pointer-events: none;
+}
+
+.spine-highlight {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	border-radius: 0.58rem;
+	background: linear-gradient(
+		120deg,
+		transparent 0%,
+		rgb(255 255 255 / 0.2) 33%,
+		transparent 52%
+	);
+	opacity: 0.22;
+	pointer-events: none;
+}
+
+.spine-indicator {
+	position: absolute;
+	left: 50%;
+	bottom: -0.18rem;
+	z-index: 6;
+	height: 0.24rem;
+	width: 1.65rem;
+	border-radius: 9999px;
+	background-color: var(--spine-accent-dot);
+	box-shadow: 0 0 16px var(--spine-accent-glow);
+	transform: translateX(-50%);
+}
+
+/* Accent variants — DVD uses ratings, Book uses categories */
+.spine-rating-favorite {
+	--spine-accent-start: rgb(180 83 9 / 0.98);
+	--spine-accent-mid: rgb(154 52 18 / 0.98);
+	--spine-accent-end: rgb(69 26 3 / 0.98);
+	--spine-accent-dot: rgb(245 158 11);
+	--spine-accent-glow: rgb(245 158 11 / 0.34);
+}
+
+.spine-rating-great {
+	--spine-accent-start: rgb(109 40 217 / 0.98);
+	--spine-accent-mid: rgb(79 70 229 / 0.98);
+	--spine-accent-end: rgb(30 27 75 / 0.98);
+	--spine-accent-dot: rgb(139 92 246);
+	--spine-accent-glow: rgb(139 92 246 / 0.34);
+}
+
+.spine-rating-solid {
+	--spine-accent-start: rgb(2 132 199 / 0.98);
+	--spine-accent-mid: rgb(37 99 235 / 0.98);
+	--spine-accent-end: rgb(30 58 138 / 0.98);
+	--spine-accent-dot: rgb(14 165 233);
+	--spine-accent-glow: rgb(14 165 233 / 0.34);
+}
+
+.spine-category-philosophy {
+	--spine-accent-start: rgb(109 40 217 / 0.98);
+	--spine-accent-mid: rgb(79 70 229 / 0.98);
+	--spine-accent-end: rgb(30 27 75 / 0.98);
+	--spine-accent-dot: rgb(139 92 246);
+	--spine-accent-glow: rgb(139 92 246 / 0.34);
+}
+
+.spine-category-power {
+	--spine-accent-start: rgb(180 83 9 / 0.98);
+	--spine-accent-mid: rgb(154 52 18 / 0.98);
+	--spine-accent-end: rgb(69 26 3 / 0.98);
+	--spine-accent-dot: rgb(245 158 11);
+	--spine-accent-glow: rgb(245 158 11 / 0.34);
+}
+
+.spine-category-business {
+	--spine-accent-start: rgb(5 150 105 / 0.98);
+	--spine-accent-mid: rgb(8 145 178 / 0.98);
+	--spine-accent-end: rgb(6 78 59 / 0.98);
+	--spine-accent-dot: rgb(16 185 129);
+	--spine-accent-glow: rgb(16 185 129 / 0.34);
+}
+
+.spine-category-problem {
+	--spine-accent-start: rgb(2 132 199 / 0.98);
+	--spine-accent-mid: rgb(37 99 235 / 0.98);
+	--spine-accent-end: rgb(30 58 138 / 0.98);
+	--spine-accent-dot: rgb(14 165 233);
+	--spine-accent-glow: rgb(14 165 233 / 0.34);
+}
+
+.spine-category-default {
+	--spine-accent-start: rgb(71 85 105 / 0.98);
+	--spine-accent-mid: rgb(51 65 85 / 0.98);
+	--spine-accent-end: rgb(15 23 42 / 0.98);
+	--spine-accent-dot: rgb(100 116 139);
+	--spine-accent-glow: rgb(100 116 139 / 0.34);
+}
+
+.spine-default {
+	border-color: rgb(15 23 42 / 0.28);
+}
+
+.spine-selected {
+	border-color: var(--spine-accent-dot);
+	filter: saturate(1.12) brightness(1.06);
+	transform: translateY(-0.65rem) scale(1.035) rotateX(3deg);
+	box-shadow:
+		0 16px 26px rgb(15 23 42 / 0.34),
+		0 0 24px var(--spine-accent-glow),
+		inset 1px 0 0 rgb(255 255 255 / 0.23),
+		inset -3px 0 10px rgb(0 0 0 / 0.32);
+}
+
+.dark .spine-default {
+	border-color: rgb(255 255 255 / 0.16);
+}
+
+/* Per-shelf presets — only the differentiating tokens */
+.spine--dvd {
+	--spine-w: 3.3rem;
+	--spine-base-bg: rgb(39 39 42);
+	--spine-cover-w: 42%;
+	--spine-title-w: 58%;
+	--spine-meta-fs: 0.48rem;
+	--spine-meta-right: 0.34rem;
+	--spine-cover-filter: saturate(0.95) contrast(1.02);
+	--spine-meta-color: rgb(255 255 255 / 0.86);
+	--spine-focus: rgb(245 158 11);
+}
+
+.spine--book {
+	--spine-w: 3.15rem;
+	--spine-base-bg: rgb(30 27 75);
+	--spine-cover-w: 31%;
+	--spine-title-w: 69%;
+	--spine-meta-fs: 0.46rem;
+	--spine-meta-right: 0.36rem;
+	--spine-cover-filter: saturate(0.92) contrast(0.98);
+	--spine-meta-color: rgb(255 255 255 / 0.82);
+	--spine-focus: rgb(139 92 246);
+}
+
+/* Star filter for ratings */
+.star-shadow {
+	filter: drop-shadow(0 2px 4px rgb(251 191 36 / 0.3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.spine-scroll-container {
+		scroll-behavior: auto;
+	}
+
+	.spine,
+	.spine:hover,
+	.spine-selected {
+		transition: none;
+		transform: none;
+	}
+}

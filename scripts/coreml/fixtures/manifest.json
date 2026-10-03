@@ -1,0 +1,774 @@
+{
+  "schema": "coreml-native-fixtures/v1",
+  "createdAt": "2026-09-25T08:23:26.389Z",
+  "scoreTieBand": 0.002,
+  "requirements": {
+    "solids": 16,
+    "photos": 32,
+    "videoFrames": 16,
+    "minQueries": 20,
+    "note": "If the real fixture corpus is unavailable or hashes do not match, the result is inconclusive and cannot pass (plan §5.2)."
+  },
+  "counts": {
+    "solids": 16,
+    "photos": 32,
+    "videoFrames": 16,
+    "queries": 22
+  },
+  "complete": true,
+  "images": [
+    {
+      "id": "solid-red",
+      "file": "images/solid-red.jpg",
+      "kind": "solid",
+      "label": "red",
+      "sha256": "f2c4a0f66bd667d74e7ba6ed99e7f8ccb26e952d2df2a70a6960b7ecc51b2f88",
+      "bytes": 1035
+    },
+    {
+      "id": "solid-orange",
+      "file": "images/solid-orange.jpg",
+      "kind": "solid",
+      "label": "orange",
+      "sha256": "1f6abe0c94be32ed6f3ac97179694e2d20c22cdebd27a07940b4a0ee4aa084fd",
+      "bytes": 1033
+    },
+    {
+      "id": "solid-yellow",
+      "file": "images/solid-yellow.jpg",
+      "kind": "solid",
+      "label": "yellow",
+      "sha256": "d6b4420485048f528fba2aeef8e382459f94b5bf7e838e1c5c3f5a61462be48d",
+      "bytes": 1034
+    },
+    {
+      "id": "solid-chartreuse",
+      "file": "images/solid-chartreuse.jpg",
+      "kind": "solid",
+      "label": "chartreuse",
+      "sha256": "751adfff8220041fbf343fe8fefbfae5298a0dc499ca89b6b7b5f5371261d672",
+      "bytes": 1034
+    },
+    {
+      "id": "solid-green",
+      "file": "images/solid-green.jpg",
+      "kind": "solid",
+      "label": "green",
+      "sha256": "76c8f3332e7b7f25355696c9127f6616111d6a8d7cbeec1cd6e7e03f80f5fbd1",
+      "bytes": 1034
+    },
+    {
+      "id": "solid-spring",
+      "file": "images/solid-spring.jpg",
+      "kind": "solid",
+      "label": "spring",
+      "sha256": "905b47d595c22d2c6a1cef9c7ddfa8d32d251489ba90938d6ea1307a32e6b134",
+      "bytes": 1034
+    },
+    {
+      "id": "solid-cyan",
+      "file": "images/solid-cyan.jpg",
+      "kind": "solid",
+      "label": "cyan",
+      "sha256": "8b7ff218bc3a1fff2e7a014d6b9519bb29436db3733817445c90be7325c0b915",
+      "bytes": 1034
+    },
+    {
+      "id": "solid-azure",
+      "file": "images/solid-azure.jpg",
+      "kind": "solid",
+      "label": "azure",
+      "sha256": "eb5a6a56a03dfc7021c7a176465cc442579e78cda613df3b1d2f009dbcb7d404",
+      "bytes": 1034
+    },
+    {
+      "id": "solid-blue",
+      "file": "images/solid-blue.jpg",
+      "kind": "solid",
+      "label": "blue",
+      "sha256": "2ccb473816ed9a2a1442bf5c5772ac8007e395575c1a077a9178f7bb27acdad9",
+      "bytes": 1034
+    },
+    {
+      "id": "solid-violet",
+      "file": "images/solid-violet.jpg",
+      "kind": "solid",
+      "label": "violet",
+      "sha256": "5b628c6a6b1701ffa64dc33cc8236b83f22103e8e605a8a63d0e0ceeea9c3b00",
+      "bytes": 1033
+    },
+    {
+      "id": "solid-magenta",
+      "file": "images/solid-magenta.jpg",
+      "kind": "solid",
+      "label": "magenta",
+      "sha256": "6395a2308981dda57fd9c2d489505fc9c2e19eaaed659589e063173ad3599cbe",
+      "bytes": 1035
+    },
+    {
+      "id": "solid-rose",
+      "file": "images/solid-rose.jpg",
+      "kind": "solid",
+      "label": "rose",
+      "sha256": "6b1807970456a395cbab4877c6f41ee0be7da4b5bc33538c53ae2eb4b7ab778e",
+      "bytes": 1034
+    },
+    {
+      "id": "solid-slate",
+      "file": "images/solid-slate.jpg",
+      "kind": "solid",
+      "label": "slate",
+      "sha256": "dd1f64ac615d2483894e66b73362a557e238182ead106b423b8a40b1f1be9898",
+      "bytes": 1035
+    },
+    {
+      "id": "solid-navy",
+      "file": "images/solid-navy.jpg",
+      "kind": "solid",
+      "label": "navy",
+      "sha256": "0bf500431ea9451706f9aac5c53587ff326fff4cc57877e02e906ca18b4f3f5f",
+      "bytes": 1033
+    },
+    {
+      "id": "solid-olive",
+      "file": "images/solid-olive.jpg",
+      "kind": "solid",
+      "label": "olive",
+      "sha256": "5b31008c972838b70dfdafe34f44dbd92aaca8c2b5582a5a995bfcba6dbe3227",
+      "bytes": 1035
+    },
+    {
+      "id": "solid-brown",
+      "file": "images/solid-brown.jpg",
+      "kind": "solid",
+      "label": "brown",
+      "sha256": "04aa723cc039e1f7adb402a880db184b1a5a58d9f08f20e7a4ac593e2e20dc0a",
+      "bytes": 1034
+    },
+    {
+      "id": "photo-ui-01-empty-dark",
+      "file": "images/photo-ui-01-empty-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/01-empty-dark.png",
+      "sha256": "1629df4dd44f615aec4a1d1d3e3935db4cd6fdb09aa7174be5f4b300104d5195",
+      "bytes": 68826
+    },
+    {
+      "id": "photo-ui-02-empty-light",
+      "file": "images/photo-ui-02-empty-light.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/02-empty-light.png",
+      "sha256": "7b4950c8cc0eab6278a699880ecdac489b5762a3f0b2d56a1948e10db14568a9",
+      "bytes": 116326
+    },
+    {
+      "id": "photo-ui-03-grid-dark",
+      "file": "images/photo-ui-03-grid-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/03-grid-dark.png",
+      "sha256": "8f21d3edd59c53437c984ed11b58586630639b0a83fb1f4235e6398b12f33556",
+      "bytes": 174150
+    },
+    {
+      "id": "photo-ui-04-mode-pills-ocr-dark",
+      "file": "images/photo-ui-04-mode-pills-ocr-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/04-mode-pills-ocr-dark.png",
+      "sha256": "f82f83ca9b4887d29093cde7973f6680bda8027254f37db2825926c3d2536733",
+      "bytes": 174701
+    },
+    {
+      "id": "photo-ui-05-grid-light",
+      "file": "images/photo-ui-05-grid-light.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/05-grid-light.png",
+      "sha256": "ab07851670b6cd29578bbd6aed3b71385d04fd9f197d1adcf8e7634bbb129719",
+      "bytes": 267507
+    },
+    {
+      "id": "photo-ui-06-settings-appearance-dark",
+      "file": "images/photo-ui-06-settings-appearance-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-appearance-dark.png",
+      "sha256": "78630834d32a700ea36bebf09b9ee3c211049082b962b2494802a0498adee657",
+      "bytes": 564507
+    },
+    {
+      "id": "photo-ui-06-settings-global-shortcut-dark",
+      "file": "images/photo-ui-06-settings-global-shortcut-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-global-shortcut-dark.png",
+      "sha256": "6939a8e35214521e2b24efca5cca67d16763e8954dd7efe85fc793abe9194830",
+      "bytes": 380675
+    },
+    {
+      "id": "photo-ui-06-settings-grid-dark",
+      "file": "images/photo-ui-06-settings-grid-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-grid-dark.png",
+      "sha256": "0fe473c8fc9de37cb176f48d45e71e9cae0f424872c95981a12bd2d760418d29",
+      "bytes": 384760
+    },
+    {
+      "id": "photo-ui-06-settings-keyboard-dark",
+      "file": "images/photo-ui-06-settings-keyboard-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-keyboard-dark.png",
+      "sha256": "519e751081bce957d4489f07fbb03d00208fcb7d80c1aebd896f11a88a51cfdf",
+      "bytes": 520886
+    },
+    {
+      "id": "photo-ui-06-settings-library-dark",
+      "file": "images/photo-ui-06-settings-library-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-library-dark.png",
+      "sha256": "cfe74257bc668371a4b790ea8abf29467debc4f4f71d756e83103f28d9311f76",
+      "bytes": 472356
+    },
+    {
+      "id": "photo-ui-06-settings-llms-chat-dark",
+      "file": "images/photo-ui-06-settings-llms-chat-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-llms-chat-dark.png",
+      "sha256": "5f9777fc895cd1333544ae71fce883d2852ff46ac5763498fa040ede3b4fcb77",
+      "bytes": 545885
+    },
+    {
+      "id": "photo-ui-06-settings-menu-bar-dark",
+      "file": "images/photo-ui-06-settings-menu-bar-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-menu-bar-dark.png",
+      "sha256": "bc9bb9bb1a91b8d15b1ce29ff6c2f15b92873c6508fc7d7e92c9225ee8cd3d84",
+      "bytes": 432376
+    },
+    {
+      "id": "photo-ui-06-settings-photo-search-dark",
+      "file": "images/photo-ui-06-settings-photo-search-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-photo-search-dark.png",
+      "sha256": "cdccd22b1c2415eecbc7e672242c8aa61f84f1522b7f9add65526c5f53a9b226",
+      "bytes": 460397
+    },
+    {
+      "id": "photo-ui-06-settings-smart-tabs-dark",
+      "file": "images/photo-ui-06-settings-smart-tabs-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-smart-tabs-dark.png",
+      "sha256": "6f1376ca938c69a81fd0bd45a75e1f8dce5022120a64bde58701a7e484089420",
+      "bytes": 469343
+    },
+    {
+      "id": "photo-ui-06-settings-video-search-dark",
+      "file": "images/photo-ui-06-settings-video-search-dark.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/06-settings-video-search-dark.png",
+      "sha256": "4121cc8dd6e8d5b5984405aa964a07efe1f06ce40355ec43ed60f8cf8c8dee12",
+      "bytes": 472377
+    },
+    {
+      "id": "photo-ui-07-settings-appearance-light",
+      "file": "images/photo-ui-07-settings-appearance-light.png",
+      "kind": "photo",
+      "label": "screenshot user interface",
+      "source": "review-screenshots/07-settings-appearance-light.png",
+      "sha256": "04a18fe09016e2bfb40b603845649010682dbee35796f0814a2e8e9733856809",
+      "bytes": 580837
+    },
+    {
+      "id": "photo-icon-black",
+      "file": "images/photo-icon-black.png",
+      "kind": "photo",
+      "label": "app icon illustration",
+      "source": "public/images/app-icons/black.png",
+      "sha256": "1fc6cbf5a77734e2f81fcb71a5ca3d2e110be7472b6dafeebec691210bb46a3c",
+      "bytes": 249199
+    },
+    {
+      "id": "photo-icon-retro",
+      "file": "images/photo-icon-retro.png",
+      "kind": "photo",
+      "label": "app icon illustration",
+      "source": "public/images/app-icons/retro.png",
+      "sha256": "93b61eb831513dc207c9e73bcc8733c9bd7967301c0f8f700b09f28ef192d605",
+      "bytes": 1476603
+    },
+    {
+      "id": "photo-icon-scm-bot",
+      "file": "images/photo-icon-scm-bot.png",
+      "kind": "photo",
+      "label": "app icon illustration",
+      "source": "public/images/app-icons/scm-bot.png",
+      "sha256": "ab5c02e118417ecce1e8cce020d9f86631017f883d3b365858fe6c29a0cc1771",
+      "bytes": 1025374
+    },
+    {
+      "id": "photo-icon-scm-kodak",
+      "file": "images/photo-icon-scm-kodak.png",
+      "kind": "photo",
+      "label": "app icon illustration",
+      "source": "public/images/app-icons/scm-kodak.png",
+      "sha256": "b919bf2ae6327d2c99f0416ad01ad7afca30c114f18f8c419827e704b33a5f12",
+      "bytes": 1580041
+    },
+    {
+      "id": "photo-icon-scm-vhs-player",
+      "file": "images/photo-icon-scm-vhs-player.png",
+      "kind": "photo",
+      "label": "app icon illustration",
+      "source": "public/images/app-icons/scm-vhs-player.png",
+      "sha256": "36b603ac6addc73e06a872206cdcb7925f7df0cfd9b0f92a0bdf8c289837fb44",
+      "bytes": 1488830
+    },
+    {
+      "id": "photo-icon-scm-vhs",
+      "file": "images/photo-icon-scm-vhs.png",
+      "kind": "photo",
+      "label": "app icon illustration",
+      "source": "public/images/app-icons/scm-vhs.png",
+      "sha256": "21aa9d5e65efcb698dfc1bd8e797302714a630908e8df898a2136b44804ab75f",
+      "bytes": 1040754
+    },
+    {
+      "id": "photo-detail-control-control-tower",
+      "file": "images/photo-detail-control-control-tower.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/control-control-tower.jpg",
+      "sha256": "742db1a1c2887434866e5a4f11e326081065d269e5b90c37a0afa2e73de6d7be",
+      "bytes": 25129
+    },
+    {
+      "id": "photo-detail-control-giant-sign",
+      "file": "images/photo-detail-control-giant-sign.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/control-giant-sign.jpg",
+      "sha256": "42db02a5cce694ded4ce2fcdda949e291fe4e526e72f446b06ab9675d23de3c4",
+      "bytes": 23498
+    },
+    {
+      "id": "photo-detail-shape-blue-square",
+      "file": "images/photo-detail-shape-blue-square.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/shape-blue-square.jpg",
+      "sha256": "fcfeebac6bb6465c745f67fbd054849b1ac289af235a92f14d863faed5f3fb1f",
+      "bytes": 13769
+    },
+    {
+      "id": "photo-detail-shape-cyan-cross",
+      "file": "images/photo-detail-shape-cyan-cross.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/shape-cyan-cross.jpg",
+      "sha256": "5b4fe281db7b5726b3a8d7e5c8460266f1029024e8308e520fb5a319085a3034",
+      "bytes": 14304
+    },
+    {
+      "id": "photo-detail-shape-green-triangle",
+      "file": "images/photo-detail-shape-green-triangle.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/shape-green-triangle.jpg",
+      "sha256": "faa73fd306ca1715c8234478f2827a17eb61c2f866b8c1f919df9d201ffba96c",
+      "bytes": 13998
+    },
+    {
+      "id": "photo-detail-shape-magenta-bar",
+      "file": "images/photo-detail-shape-magenta-bar.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/shape-magenta-bar.jpg",
+      "sha256": "dbaca12925145a129ad1434b32095003f0202c39ea3a63a4574306b9e3694cdf",
+      "bytes": 13810
+    },
+    {
+      "id": "photo-detail-shape-red-circle",
+      "file": "images/photo-detail-shape-red-circle.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/shape-red-circle.jpg",
+      "sha256": "4d5986083e1d8e07e2a8efb29e4954295b0ce2c915015e71513ec39440d19a01",
+      "bytes": 13830
+    },
+    {
+      "id": "photo-detail-shape-yellow-dot",
+      "file": "images/photo-detail-shape-yellow-dot.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/shape-yellow-dot.jpg",
+      "sha256": "1bef859b865fd0b1c9f1a43c76c86734a01d2a369b18696e32593c74dbcc08d3",
+      "bytes": 13826
+    },
+    {
+      "id": "photo-detail-word-beacon-16px",
+      "file": "images/photo-detail-word-beacon-16px.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/word-beacon-16px.jpg",
+      "sha256": "37e9774df24779e6840d7eb01479a5e7b3d62d0a8909302a5fffe623ad62a7e9",
+      "bytes": 14535
+    },
+    {
+      "id": "photo-detail-word-beacon-28px",
+      "file": "images/photo-detail-word-beacon-28px.jpg",
+      "kind": "photo",
+      "label": "fine detail shape text",
+      "source": "/tmp/scm-finedetail/fixture/word-beacon-28px.jpg",
+      "sha256": "1e1e0130ad7ef6e835c46f4ec4a63172c7558cc32d63287d57c2363a541f3b01",
+      "bytes": 15498
+    },
+    {
+      "id": "video-pearl-00",
+      "file": "images/video-pearl-00.jpg",
+      "kind": "video-frame",
+      "label": "pearl film frame",
+      "source": "/tmp/scm-everyday/frames/pearl-00.jpg",
+      "sha256": "b755a1b07728c9eb5c648b89a06326a60c309194d3f3dca3dca10ad8705287d3",
+      "bytes": 141800
+    },
+    {
+      "id": "video-pearl-02",
+      "file": "images/video-pearl-02.jpg",
+      "kind": "video-frame",
+      "label": "pearl film frame",
+      "source": "/tmp/scm-everyday/frames/pearl-02.jpg",
+      "sha256": "1465352d8690585f6547f1b59c1c1166947dacb82e9d730fd7ff5a512741607b",
+      "bytes": 355209
+    },
+    {
+      "id": "video-pearl-04",
+      "file": "images/video-pearl-04.jpg",
+      "kind": "video-frame",
+      "label": "pearl film frame",
+      "source": "/tmp/scm-everyday/frames/pearl-04.jpg",
+      "sha256": "18e9765934b32ed01788d87ce51a1a0b2602d639af11b924944bbfd1b3bf904f",
+      "bytes": 44893
+    },
+    {
+      "id": "video-pearl-06",
+      "file": "images/video-pearl-06.jpg",
+      "kind": "video-frame",
+      "label": "pearl film frame",
+      "source": "/tmp/scm-everyday/frames/pearl-06.jpg",
+      "sha256": "7446ff5bfeda7b6bb5f1812b2e1bf5d3f000b1cf80a0abc7c5518effaf1cab7a",
+      "bytes": 80878
+    },
+    {
+      "id": "video-pearl-08",
+      "file": "images/video-pearl-08.jpg",
+      "kind": "video-frame",
+      "label": "pearl film frame",
+      "source": "/tmp/scm-everyday/frames/pearl-08.jpg",
+      "sha256": "50c94835317118acd2a60a28c57d4230e1259694288b44561e7d21aee50b0874",
+      "bytes": 106438
+    },
+    {
+      "id": "video-pearl-10",
+      "file": "images/video-pearl-10.jpg",
+      "kind": "video-frame",
+      "label": "pearl film frame",
+      "source": "/tmp/scm-everyday/frames/pearl-10.jpg",
+      "sha256": "c0e43d1a54da2a36833e82007e902a6a590ab1d6d849362cac3ca58aae24c715",
+      "bytes": 161293
+    },
+    {
+      "id": "video-topgun-00",
+      "file": "images/video-topgun-00.jpg",
+      "kind": "video-frame",
+      "label": "topgun film frame",
+      "source": "/tmp/scm-everyday/frames/topgun-00.jpg",
+      "sha256": "316b49a26769a158b35d795a002361efa0f79c958f287a194b23e5d1ba3c3e64",
+      "bytes": 67590
+    },
+    {
+      "id": "video-topgun-02",
+      "file": "images/video-topgun-02.jpg",
+      "kind": "video-frame",
+      "label": "topgun film frame",
+      "source": "/tmp/scm-everyday/frames/topgun-02.jpg",
+      "sha256": "1cd672ce492cc5f406430c23833be12e52d1e998d41780d0629c47f57fda221f",
+      "bytes": 59638
+    },
+    {
+      "id": "video-topgun-04",
+      "file": "images/video-topgun-04.jpg",
+      "kind": "video-frame",
+      "label": "topgun film frame",
+      "source": "/tmp/scm-everyday/frames/topgun-04.jpg",
+      "sha256": "6be9dd889acb3ae6934fbf17bec1a04ba2f08b4f33954b00604f46ede3cf7fa7",
+      "bytes": 256676
+    },
+    {
+      "id": "video-topgun-05",
+      "file": "images/video-topgun-05.jpg",
+      "kind": "video-frame",
+      "label": "topgun film frame",
+      "source": "/tmp/scm-everyday/frames/topgun-05.jpg",
+      "sha256": "b65bc5bc6733ef251a3f47d8dee835003d7d11acd492626e7ddbd51947960a20",
+      "bytes": 45178
+    },
+    {
+      "id": "video-topgun-07",
+      "file": "images/video-topgun-07.jpg",
+      "kind": "video-frame",
+      "label": "topgun film frame",
+      "source": "/tmp/scm-everyday/frames/topgun-07.jpg",
+      "sha256": "d7f14f4fdcb37d115e6d88420dc686360e5d6aa96ea2500f6179841a38f27617",
+      "bytes": 68150
+    },
+    {
+      "id": "video-topgun-09",
+      "file": "images/video-topgun-09.jpg",
+      "kind": "video-frame",
+      "label": "topgun film frame",
+      "source": "/tmp/scm-everyday/frames/topgun-09.jpg",
+      "sha256": "c4bf5e5fd2c11acc5ae3c8577bac57b52866794283d024728f00f1eaa0196ff4",
+      "bytes": 70388
+    },
+    {
+      "id": "video-topgun-10",
+      "file": "images/video-topgun-10.jpg",
+      "kind": "video-frame",
+      "label": "topgun film frame",
+      "source": "/tmp/scm-everyday/frames/topgun-10.jpg",
+      "sha256": "ef4b84ea4b0c02e66dfbc7993a034ccbe97a305c51727a9a2888db1eecd8116e",
+      "bytes": 77289
+    },
+    {
+      "id": "video-topgun-11",
+      "file": "images/video-topgun-11.jpg",
+      "kind": "video-frame",
+      "label": "topgun film frame",
+      "source": "/tmp/scm-everyday/frames/topgun-11.jpg",
+      "sha256": "57d58c514f7cf883a5b13f43d7705e24ef0401f42150710e9b6561c890b8b1fd",
+      "bytes": 162378
+    },
+    {
+      "id": "video-pearl-11",
+      "file": "images/video-pearl-11.jpg",
+      "kind": "video-frame",
+      "label": "pearl film frame",
+      "source": "/tmp/scm-everyday/frames/pearl-11.jpg",
+      "sha256": "2a24f7751fe93e1e997f0c1aee5a6ca83d3898bba81c4e5ab1795e710be68134",
+      "bytes": 100196
+    },
+    {
+      "id": "video-topgun-01",
+      "file": "images/video-topgun-01.jpg",
+      "kind": "video-frame",
+      "label": "topgun film frame",
+      "source": "/tmp/scm-everyday/frames/topgun-01.jpg",
+      "sha256": "85186eed2a5703eac32d5b4154e97f69b2541329c66241312b72da18a2991bce",
+      "bytes": 70207
+    }
+  ],
+  "queries": [
+    {
+      "id": "q01",
+      "query": "a solid red rectangle",
+      "expectedPositives": [
+        "solid-red"
+      ]
+    },
+    {
+      "id": "q02",
+      "query": "a solid blue color field",
+      "expectedPositives": [
+        "solid-blue"
+      ]
+    },
+    {
+      "id": "q03",
+      "query": "a solid green background",
+      "expectedPositives": [
+        "solid-green"
+      ]
+    },
+    {
+      "id": "q04",
+      "query": "a solid yellow block",
+      "expectedPositives": [
+        "solid-yellow"
+      ]
+    },
+    {
+      "id": "q05",
+      "query": "a solid magenta fill",
+      "expectedPositives": [
+        "solid-magenta"
+      ]
+    },
+    {
+      "id": "q06",
+      "query": "a solid cyan surface",
+      "expectedPositives": [
+        "solid-cyan"
+      ]
+    },
+    {
+      "id": "q07",
+      "query": "a dark brown earth tone",
+      "expectedPositives": [
+        "solid-brown",
+        "solid-olive"
+      ]
+    },
+    {
+      "id": "q08",
+      "query": "a purple violet field",
+      "expectedPositives": [
+        "solid-violet"
+      ]
+    },
+    {
+      "id": "q09",
+      "query": "fighter jet flying over the ocean",
+      "expectedPositives": [
+        "video-topgun-00",
+        "video-topgun-02",
+        "video-topgun-04",
+        "video-topgun-05"
+      ]
+    },
+    {
+      "id": "q10",
+      "query": "aircraft carrier flight deck",
+      "expectedPositives": [
+        "video-topgun-00",
+        "video-topgun-02",
+        "video-topgun-04"
+      ]
+    },
+    {
+      "id": "q11",
+      "query": "pilot wearing flight helmet and visor",
+      "expectedPositives": [
+        "video-topgun-02",
+        "video-topgun-04",
+        "video-topgun-05"
+      ]
+    },
+    {
+      "id": "q12",
+      "query": "military officer in dress uniform",
+      "expectedPositives": [
+        "video-topgun-00",
+        "video-topgun-02",
+        "video-topgun-04"
+      ]
+    },
+    {
+      "id": "q13",
+      "query": "red barn on a farm",
+      "expectedPositives": [
+        "video-pearl-00",
+        "video-pearl-02",
+        "video-pearl-04",
+        "video-pearl-06"
+      ]
+    },
+    {
+      "id": "q14",
+      "query": "cornfield at sunset",
+      "expectedPositives": [
+        "video-pearl-00",
+        "video-pearl-02",
+        "video-pearl-04",
+        "video-pearl-06"
+      ]
+    },
+    {
+      "id": "q15",
+      "query": "scarecrow standing in a field",
+      "expectedPositives": [
+        "video-pearl-02",
+        "video-pearl-04",
+        "video-pearl-06",
+        "video-pearl-08"
+      ]
+    },
+    {
+      "id": "q16",
+      "query": "woman in an old fashioned dress",
+      "expectedPositives": [
+        "video-pearl-00",
+        "video-pearl-02",
+        "video-pearl-04",
+        "video-pearl-06"
+      ]
+    },
+    {
+      "id": "q17",
+      "query": "a screenshot of a software user interface",
+      "expectedPositives": [
+        "photo-ui-01-empty-dark",
+        "photo-ui-02-empty-light",
+        "photo-ui-03-grid-dark",
+        "photo-ui-04-mode-pills-ocr-dark",
+        "photo-ui-05-grid-light"
+      ]
+    },
+    {
+      "id": "q18",
+      "query": "settings menu on a dark screen",
+      "expectedPositives": [
+        "photo-ui-01-empty-dark",
+        "photo-ui-02-empty-light",
+        "photo-ui-03-grid-dark",
+        "photo-ui-04-mode-pills-ocr-dark",
+        "photo-ui-05-grid-light"
+      ]
+    },
+    {
+      "id": "q19",
+      "query": "a colorful app icon",
+      "expectedPositives": [
+        "photo-icon-black",
+        "photo-icon-retro",
+        "photo-icon-scm-bot"
+      ]
+    },
+    {
+      "id": "q20",
+      "query": "small text and geometric shapes",
+      "expectedPositives": [
+        "photo-detail-control-control-tower",
+        "photo-detail-control-giant-sign",
+        "photo-detail-shape-blue-square",
+        "photo-detail-shape-cyan-cross",
+        "photo-detail-shape-green-triangle"
+      ]
+    },
+    {
+      "id": "q21",
+      "query": "a blue square shape",
+      "expectedPositives": [
+        "photo-detail-shape-blue-square"
+      ]
+    },
+    {
+      "id": "q22",
+      "query": "the word beacon written on a page",
+      "expectedPositives": [
+        "photo-detail-word-beacon-16px",
+        "photo-detail-word-beacon-28px"
+      ]
+    }
+  ]
+}

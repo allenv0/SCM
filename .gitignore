@@ -1,0 +1,63 @@
+node_modules/
+dist/
+dist-app/
+.DS_Store
+*.tsbuildinfo
+
+# Phase 0 (N-05): never track these again.
+/SCM.png
+/eng.traineddata
+Icon*
+.venv*/
+venv/
+vlm/
+__pycache__/
+*.pyc
+
+# Phase 3A CoreML native spike generated artifacts (plan §2).
+scripts/coreml/out/
+
+# CoreML spike fixture rasters (rebuild via build-fixtures.js).
+scripts/coreml/fixtures/images/
+
+# Public-push hygiene: secrets, certs, and local overrides (none exist
+# today — zero-cost insurance; values always ride GitHub Secrets / keychain).
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+*.cer
+*.crt
+*.mobileprovision
+*.provisionprofile
+*CSC_LINK*
+secrets/
+*.entitlements.local
+
+# Build outputs and logs.
+build/
+out/
+*.dmg
+*.zip
+*.pkg
+*.log
+coverage/
+dist-app/latest-mac.yml
+
+# Local-only: dev notes/benches, review screenshots, icon sources.
+# Stays out of the public repo (public/onboarding/*.mp4 ships — first-run
+# tour assets wired in src/onboarding/onboarding-data.ts).
+MDs/
+review-screenshots/
+assets/original-app-icons/
+
+# Local demo drops (capital-A Asset/): README banner assets are explicitly
+# re-included below; everything else in Asset/ stays untracked.
+# NOTE: `Asset/` alone would ignore the dir itself and block re-includes,
+# so ignore contents instead.
+Asset/*
+!Asset/scm-vhs.png
+!Asset/0.gif

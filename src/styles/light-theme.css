@@ -1,0 +1,48 @@
+/* Light theme — "Daylight Machine" ─────────────────────────────
+   The dark mode is the machine at night, glowing. Light mode is the
+   same machine by daylight: cool platinum/silver plastic, softer
+   ambient shadows, ink-on-plastic text. CRT glass stays dark phosphor
+   (glow only reads against darkness) — screens are untouched hardware
+   inside lighter shells.
+
+   Two layers, one rule:
+     TOKENS  = semantic custom properties below. Every new light-mode
+               rule reads these — never raw hexes.
+     RECIPES = per-material .light overrides living next to their
+               dark-mode rules in effects/crt-terminal/shelves/film.
+
+   Accent policy: light accents are the brand spectrum's ink tier
+   (--ai-violet-ink / --ai-cyan-ink from globals.css), NOT blue. */
+
+.light {
+	/* ---- Plastic tiers ----
+	   E1 sheet/panel skin, E2 raised bezel skin, WELL recessed inputs.
+	   Values promoted from the app's existing one-off light gradients
+	   so every surface now shares one source of truth. */
+	--plastic-e1-from: #eef3f9;
+	--plastic-e1-to: #dde4ec;
+	--plastic-e2-from: #f4f7fb;
+	--plastic-e2-via: #d7dee7;
+	--plastic-e2-to: #a7b3c0;
+	--plastic-well-from: #e8edf3;
+	--plastic-well-to: #b9c4d1;
+
+	/* ---- Ink hierarchy (graphite, never pure black) ---- */
+	--ink-primary: #27272a;
+	--ink-secondary: #52525b;
+	--ink-tertiary: #71717a;
+
+	/* ---- Accents (brand spectrum ink tier) ---- */
+	--accent: var(--ai-violet-ink);
+	--accent-strong: #6d28d9;
+	--accent-soft: rgba(139, 92, 246, 0.14);
+	--accent-glow: rgba(124, 58, 237, 0.22);
+
+	/* ---- Ambient shadow language ----
+	   Daylight shadows are two-layer: tight contact + wide ambient,
+	   both slate-tinted rather than black. Inset white highlights stay. */
+	--shadow-contact: rgba(15, 23, 42, 0.18);
+	--shadow-ambient: rgba(15, 23, 42, 0.12);
+
+	color-scheme: light;
+}

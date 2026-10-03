@@ -1,0 +1,1706 @@
+/* Unified CRT window + terminal themes, shell/bezel/glass/screen layers, command palette, mail toast, boot scanline, flicker. */
+
+.terminal-panel {
+	@apply rounded-lg border border-white/20 bg-black/95 backdrop-blur-md;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+	position: relative;
+	overflow: hidden;
+}
+
+.light .terminal-panel {
+	@apply rounded-lg bg-white/95 backdrop-blur-md;
+	border-color: rgba(var(--ai-violet-rgb), 0.6);
+	box-shadow:
+		0 0 20px var(--accent-glow),
+		0 8px 32px rgba(15, 23, 42, 0.1);
+}
+
+.terminal-cursor::after {
+	content: "";
+	@apply absolute right-2 top-1/2 h-4 w-0.5 -translate-y-1/2 bg-white/80;
+	animation: terminal-cursor 1s infinite;
+}
+
+.light .terminal-cursor::after {
+	background: rgba(var(--ai-violet-rgb), 0.8);
+}
+
+.terminal-scan {
+	@apply absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-purple-400/40 to-transparent;
+	animation: terminal-scan 3s infinite;
+	pointer-events: none;
+	z-index: 10;
+	box-shadow: 0 0 8px rgba(138, 92, 246, 0.3);
+}
+
+@keyframes terminal-cursor {
+	0%,
+	50% {
+		opacity: 1;
+	}
+	51%,
+	100% {
+		opacity: 0;
+	}
+}
+
+@keyframes terminal-scan {
+	0% {
+		transform: translateY(0);
+		opacity: 0;
+	}
+	10% {
+		opacity: 1;
+	}
+	90% {
+		opacity: 1;
+	}
+	100% {
+		transform: translateY(400px);
+		opacity: 0;
+	}
+}
+
+.terminal-input {
+	@apply bg-transparent font-mono text-white placeholder-gray-500 focus:outline-none;
+	text-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+.light .terminal-input {
+	color: var(--ai-violet-ink);
+	text-shadow: 0 0 4px rgba(var(--ai-violet-rgb), 0.25);
+}
+
+.light .terminal-input::placeholder {
+	color: rgba(var(--ai-violet-rgb), 0.5);
+}
+
+.terminal-result {
+	@apply border-l-2 border-transparent font-mono text-white transition-all duration-300;
+	text-shadow: 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.light .terminal-result {
+	@apply text-gray-800;
+	text-shadow: none;
+}
+
+.terminal-result:hover {
+	@apply bg-white/10;
+}
+
+.light .terminal-result:hover {
+	background: rgba(var(--ai-violet-rgb), 0.1);
+}
+
+.terminal-result.selected {
+	@apply border-l-white/50 bg-white/20;
+	text-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
+}
+
+.light .terminal-result.selected {
+	border-left-color: rgba(var(--ai-violet-rgb), 0.5);
+	background: rgba(var(--ai-violet-rgb), 0.16);
+	text-shadow: none;
+}
+
+.terminal-prompt {
+	@apply font-mono text-white;
+	text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+.light .terminal-prompt {
+	color: var(--ai-violet-ink);
+	text-shadow: none;
+}
+
+/* Subtle shell texture for skeuomorphic surfaces */
+.plastic-grain {
+	opacity: 0.18;
+	background-image:
+		radial-gradient(rgba(255, 255, 255, 0.3) 0.5px, transparent 0.5px),
+		radial-gradient(rgba(0, 0, 0, 0.16) 0.45px, transparent 0.45px);
+	background-size:
+		3px 3px,
+		4px 4px;
+	background-position:
+		0 0,
+		1px 1px;
+	mix-blend-mode: soft-light;
+}
+
+.dark .plastic-grain {
+	opacity: 0.12;
+}
+
+/* Very low-intensity CRT luminance flutter */
+@keyframes crt-flicker {
+	0%,
+	100% {
+		opacity: 0.02;
+	}
+	8% {
+		opacity: 0.035;
+	}
+	17% {
+		opacity: 0.022;
+	}
+	26% {
+		opacity: 0.04;
+	}
+	39% {
+		opacity: 0.018;
+	}
+	53% {
+		opacity: 0.032;
+	}
+	67% {
+		opacity: 0.02;
+	}
+	84% {
+		opacity: 0.03;
+	}
+}
+
+.crt-flicker {
+	animation: crt-flicker 2.3s steps(2, end) infinite;
+	background: linear-gradient(
+		to bottom,
+		rgba(255, 255, 255, 0.08),
+		rgba(255, 255, 255, 0.03)
+	);
+}
+
+.dark .crt-flicker {
+	background: linear-gradient(
+		to bottom,
+		rgba(210, 245, 255, 0.1),
+		rgba(175, 220, 255, 0.04)
+	);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.crt-flicker {
+		animation: none;
+		opacity: 0.02;
+	}
+}
+
+/* On mobile: hide CRT flicker animation to reduce compositor pressure */
+@media (max-width: 639px) {
+	.crt-flicker {
+		display: none;
+	}
+}
+
+/* ── Boot scanline: a bright horizontal line that sweeps down the CRT ── */
+@keyframes boot-scanline-sweep {
+	0% {
+		top: -4px;
+		opacity: 0;
+	}
+	4% {
+		opacity: 1;
+	}
+	85% {
+		opacity: 0.8;
+	}
+	100% {
+		top: 100%;
+		opacity: 0;
+	}
+}
+
+.crt-window__scanline {
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 2px;
+	z-index: 5;
+	pointer-events: none;
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		color-mix(in srgb, var(--term-accent) 12%, transparent) 15%,
+		color-mix(in srgb, var(--term-accent) 45%, transparent) 35%,
+		rgba(255, 255, 255, 0.55) 50%,
+		color-mix(in srgb, var(--term-accent) 45%, transparent) 65%,
+		color-mix(in srgb, var(--term-accent) 12%, transparent) 85%,
+		transparent 100%
+	);
+	box-shadow:
+		0 0 6px color-mix(in srgb, var(--term-accent) 18%, transparent),
+		0 0 14px color-mix(in srgb, var(--term-accent) 8%, transparent);
+	animation: boot-scanline-sweep 3s cubic-bezier(0.45, 0.05, 0.2, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.crt-window__scanline {
+		display: none;
+	}
+}
+
+/* ── Unified CRT Window ────────────────────────── */
+
+/* Size presets */
+.crt-window--terminal {
+	--crt-size: 1;
+	--crt-shell-perspective: 1500px;
+	--crt-window-filter: drop-shadow(0 28px 70px rgba(0, 0, 0, 0.64))
+		drop-shadow(0 0 42px rgba(84, 255, 138, 0.1));
+	--crt-lip-x: 13%;
+}
+
+.crt-window--command {
+	--crt-size: 0.76;
+	--crt-shell-perspective: 1200px;
+	--crt-window-filter: drop-shadow(0 24px 60px rgba(0, 0, 0, 0.62))
+		drop-shadow(0 0 34px rgba(84, 255, 138, 0.1));
+	--crt-lip-x: 16%;
+}
+
+.crt-window--mail {
+	--crt-size: 0.58;
+	--crt-shell-perspective: 1000px;
+	--crt-window-filter: drop-shadow(0 18px 42px rgba(0, 0, 0, 0.5))
+		drop-shadow(0 0 24px rgba(84, 255, 138, 0.1));
+	--crt-lip-x: 18%;
+}
+
+/* ── Terminal color themes ───────────────────────
+	   Each theme exposes a set of --term-* tokens consumed by the
+	   terminal-specific CRT rules below. The default (phosphor) is
+	   declared on .crt-window--terminal; variants override via
+	   [data-term-theme="..."]. Selection is driven by the in-terminal
+	   `theme <name>` command and persisted to localStorage. */
+
+/* phosphor (default) — green CRT */
+.crt-window--terminal {
+	--term-fg: #caffbd;
+	--term-accent: #8cf8ff;
+	--term-boot: #79ff9a;
+	--term-system: #d7b6ff;
+	--term-search: #ffd166;
+	--term-error: #ff6b6b;
+	--term-led: #85ff8d;
+	--term-led-glow: rgba(133, 255, 141, 0.82);
+	--term-glow-strong: rgba(132, 255, 153, 0.45);
+	--term-glow-soft: rgba(91, 255, 136, 0.12);
+	--term-screen-bg: radial-gradient(
+		ellipse at 50% 48%,
+		rgba(23, 71, 42, 0.82) 0%,
+		rgba(6, 31, 18, 0.96) 54%,
+		#020604 100%
+	);
+	--term-screen-vignette: radial-gradient(
+		ellipse at 50% 47%,
+		rgba(25, 74, 40, 0.2) 0%,
+		rgba(2, 17, 9, 0.04) 48%,
+		rgba(0, 0, 0, 0.58) 100%
+	);
+	--term-head-border: rgba(144, 255, 169, 0.16);
+	--term-head-bg: linear-gradient(
+		to bottom,
+		rgba(190, 255, 204, 0.08),
+		rgba(10, 35, 18, 0.06)
+	);
+	--term-head-shadow: rgba(98, 255, 134, 0.06);
+}
+
+.crt-window--terminal[data-term-theme="amber"] {
+	--term-fg: #ffce8a;
+	--term-accent: #ffd27f;
+	--term-boot: #ffb000;
+	--term-system: #ffb3c1;
+	--term-search: #ffe08a;
+	--term-error: #ff7a5c;
+	--term-led: #ffb347;
+	--term-led-glow: rgba(255, 179, 71, 0.82);
+	--term-glow-strong: rgba(255, 176, 0, 0.45);
+	--term-glow-soft: rgba(255, 176, 0, 0.12);
+	--term-screen-bg: radial-gradient(
+		ellipse at 50% 48%,
+		rgba(71, 47, 8, 0.82) 0%,
+		rgba(31, 19, 3, 0.96) 54%,
+		#060400 100%
+	);
+	--term-screen-vignette: radial-gradient(
+		ellipse at 50% 47%,
+		rgba(74, 47, 8, 0.2) 0%,
+		rgba(17, 9, 2, 0.04) 48%,
+		rgba(0, 0, 0, 0.58) 100%
+	);
+	--term-head-border: rgba(255, 200, 120, 0.18);
+	--term-head-bg: linear-gradient(
+		to bottom,
+		rgba(255, 224, 170, 0.08),
+		rgba(35, 22, 6, 0.06)
+	);
+	--term-head-shadow: rgba(255, 176, 0, 0.06);
+}
+
+.crt-window--terminal[data-term-theme="ibm"] {
+	--term-fg: #aef3ff;
+	--term-accent: #5fd7ff;
+	--term-boot: #5fd7ff;
+	--term-system: #b3c7ff;
+	--term-search: #9be7ff;
+	--term-error: #ff8fa3;
+	--term-led: #5fd7ff;
+	--term-led-glow: rgba(95, 215, 255, 0.82);
+	--term-glow-strong: rgba(95, 215, 255, 0.45);
+	--term-glow-soft: rgba(95, 215, 255, 0.12);
+	--term-screen-bg: radial-gradient(
+		ellipse at 50% 48%,
+		rgba(8, 42, 60, 0.82) 0%,
+		rgba(3, 18, 31, 0.96) 54%,
+		#02060c 100%
+	);
+	--term-screen-vignette: radial-gradient(
+		ellipse at 50% 47%,
+		rgba(8, 42, 60, 0.2) 0%,
+		rgba(2, 9, 17, 0.04) 48%,
+		rgba(0, 0, 0, 0.58) 100%
+	);
+	--term-head-border: rgba(120, 210, 255, 0.18);
+	--term-head-bg: linear-gradient(
+		to bottom,
+		rgba(170, 243, 255, 0.08),
+		rgba(8, 28, 44, 0.06)
+	);
+	--term-head-shadow: rgba(95, 215, 255, 0.06);
+}
+
+/* dracula — midnight purple CRT lit by neon (Dracula palette) */
+.crt-window--terminal[data-term-theme="dracula"] {
+	--term-fg: #f8f8f2;
+	--term-accent: #8be9fd;
+	--term-boot: #50fa7b;
+	--term-system: #bd93f9;
+	--term-search: #f1fa8c;
+	--term-error: #ff5555;
+	--term-led: #bd93f9;
+	--term-led-glow: rgba(189, 147, 249, 0.82);
+	--term-glow-strong: rgba(189, 147, 249, 0.42);
+	--term-glow-soft: rgba(189, 147, 249, 0.12);
+	--term-screen-bg: radial-gradient(
+		ellipse at 50% 48%,
+		rgba(48, 32, 70, 0.84) 0%,
+		rgba(24, 15, 40, 0.96) 54%,
+		#0b0712 100%
+	);
+	--term-screen-vignette: radial-gradient(
+		ellipse at 50% 47%,
+		rgba(52, 34, 78, 0.22) 0%,
+		rgba(18, 11, 30, 0.04) 48%,
+		rgba(0, 0, 0, 0.58) 100%
+	);
+	--term-head-border: rgba(189, 147, 249, 0.22);
+	--term-head-bg: linear-gradient(
+		to bottom,
+		rgba(248, 248, 242, 0.08),
+		rgba(30, 18, 48, 0.06)
+	);
+	--term-head-shadow: rgba(189, 147, 249, 0.07);
+}
+
+/* cursor — warm "early-dawn" light theme (Cursor editor vibe) */
+
+.crt-window--terminal[data-term-theme="mono"] {
+	--term-fg: #e6e6e6;
+	--term-accent: #ffffff;
+	--term-boot: #cfcfcf;
+	--term-system: #b9b9b9;
+	--term-search: #ffd166;
+	--term-error: #ff7777;
+	--term-led: #d4d4d4;
+	--term-led-glow: rgba(212, 212, 212, 0.7);
+	--term-glow-strong: rgba(230, 230, 230, 0.4);
+	--term-glow-soft: rgba(255, 255, 255, 0.1);
+	--term-screen-bg: radial-gradient(
+		ellipse at 50% 48%,
+		rgba(30, 30, 32, 0.95) 0%,
+		rgba(12, 12, 14, 0.98) 54%,
+		#000000 100%
+	);
+	--term-screen-vignette: radial-gradient(
+		ellipse at 50% 47%,
+		rgba(40, 40, 44, 0.18) 0%,
+		rgba(8, 8, 10, 0.04) 48%,
+		rgba(0, 0, 0, 0.6) 100%
+	);
+	--term-head-border: rgba(200, 200, 200, 0.16);
+	--term-head-bg: linear-gradient(
+		to bottom,
+		rgba(230, 230, 230, 0.07),
+		rgba(20, 20, 22, 0.06)
+	);
+	--term-head-shadow: rgba(230, 230, 230, 0.05);
+}
+
+/* ── Daylight machine: light-mode hardware ───────────────
+	   The plastic case and bezel lift to sun-bleached ivory/graphite;
+	   the glass stays dark phosphor (all --term-* themes untouched) —
+	   glow only reads against darkness. Window drop shadows soften to
+	   slate-tinted daylight ambience with a faint violet cast. */
+
+.light .crt-window--terminal {
+	--crt-window-filter: drop-shadow(0 28px 70px rgba(15, 23, 42, 0.4))
+		drop-shadow(0 0 42px rgba(139, 92, 246, 0.12));
+}
+
+.light .crt-window--command {
+	--crt-window-filter: drop-shadow(0 24px 60px rgba(15, 23, 42, 0.38))
+		drop-shadow(0 0 34px rgba(139, 92, 246, 0.12));
+}
+
+.light .crt-window--mail {
+	--crt-window-filter: drop-shadow(0 18px 42px rgba(15, 23, 42, 0.3))
+		drop-shadow(0 0 24px rgba(139, 92, 246, 0.12));
+}
+
+.light .crt-window__shell {
+	border-color: rgba(255, 255, 255, 0.55);
+	background:
+		radial-gradient(
+			ellipse at 50% 0%,
+			rgba(255, 255, 255, 0.52) 0%,
+			rgba(255, 255, 255, 0.18) 28%,
+			transparent 62%
+		),
+		radial-gradient(
+			ellipse at 18% 22%,
+			rgba(255, 255, 255, 0.32),
+			transparent 34%
+		),
+		linear-gradient(135deg, #eceadb 0%, #aaa795 48%, #6d6e60 100%);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.85),
+		inset calc(20px * var(--s)) calc(16px * var(--s)) calc(44px * var(--s))
+			rgba(255, 255, 255, 0.28),
+		inset calc(-28px * var(--s)) calc(-32px * var(--s)) calc(58px * var(--s))
+			rgba(74, 72, 60, 0.38),
+		calc(8px * var(--s)) calc(28px * var(--s)) calc(70px * var(--s))
+			var(--shadow-contact);
+}
+
+.light .crt-window__bezel {
+	border-color: rgba(0, 0, 0, 0.4);
+	background:
+		radial-gradient(
+			ellipse at 50% 45%,
+			rgba(64, 66, 56, 0.08) 0%,
+			rgba(40, 42, 34, 0.4) 72%,
+			rgba(30, 32, 26, 0.55) 100%
+		),
+		linear-gradient(135deg, #9a9b8e, #565850 62%, #33352c);
+	box-shadow:
+		inset 0 2px 2px rgba(255, 255, 255, 0.35),
+		inset 0 calc(-12px * var(--s)) calc(26px * var(--s)) rgba(0, 0, 0, 0.4),
+		0 2px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* Outer window wrapper */
+.crt-window {
+	perspective: var(--crt-shell-perspective, 1500px);
+	filter: var(--crt-window-filter);
+}
+
+/* Shell (outermost plastic case) */
+.crt-window__shell {
+	--s: var(--crt-size, 1);
+	position: relative;
+	isolation: isolate;
+	padding: calc(clamp(0.75rem, 2vw, 1.35rem) * var(--s));
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	border-radius: calc(2.45rem * var(--s)) calc(2.45rem * var(--s))
+		calc(2.1rem * var(--s)) calc(2.1rem * var(--s));
+	background:
+		radial-gradient(
+			ellipse at 50% 0%,
+			rgba(255, 255, 255, 0.36) 0%,
+			rgba(255, 255, 255, 0.12) 28%,
+			transparent 62%
+		),
+		radial-gradient(
+			ellipse at 18% 22%,
+			rgba(255, 255, 255, 0.22),
+			transparent 34%
+		),
+		linear-gradient(135deg, #c9c6b8 0%, #858273 48%, #4a4b42 100%);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.64),
+		inset calc(20px * var(--s)) calc(16px * var(--s)) calc(44px * var(--s))
+			rgba(255, 255, 255, 0.14),
+		inset calc(-28px * var(--s)) calc(-32px * var(--s)) calc(58px * var(--s))
+			rgba(24, 24, 20, 0.5),
+		calc(8px * var(--s)) calc(28px * var(--s)) calc(70px * var(--s))
+			rgba(0, 0, 0, 0.58);
+}
+
+/* Terminal: larger screen area by reducing shell + bezel padding */
+.crt-window--terminal .crt-window__shell {
+	padding: calc(clamp(0.45rem, 1.2vw, 0.8rem) * var(--s));
+}
+
+.crt-window--terminal .crt-window__bezel {
+	padding: calc(clamp(0.45rem, 1.4vw, 0.8rem) * var(--s));
+}
+
+/* Plastic grain texture + case seam (::before) */
+.crt-window__shell::before {
+	content: "";
+	position: absolute;
+	inset: calc(0.45rem * var(--s));
+	z-index: -1;
+	border-radius: calc(2rem * var(--s));
+	background-image:
+			/* 1 — case seam (faint horizontal line where top & bottom shell halves join) */
+		linear-gradient(
+			to bottom,
+			transparent calc(47.5% - 0.5px),
+			rgba(60, 58, 50, 0.18) calc(47.5% - 0.5px),
+			rgba(60, 58, 50, 0.18) calc(47.5% + 0.5px),
+			rgba(255, 255, 255, 0.06) calc(47.5% + 0.5px),
+			rgba(255, 255, 255, 0.06) calc(47.5% + 1.5px),
+			transparent calc(47.5% + 1.5px)
+		),
+		/* 2 — plastic grain texture */
+		radial-gradient(rgba(255, 255, 255, 0.18) 0.6px, transparent 0.6px),
+		radial-gradient(rgba(0, 0, 0, 0.2) 0.55px, transparent 0.55px);
+	background-position:
+		0 0,
+		0 0,
+		1px 1px;
+	background-size:
+		100% 100%,
+		4px 4px,
+		5px 5px;
+	/* seam = no-repeat, grain layers = repeat (tile across surface) */
+	background-repeat: no-repeat, repeat, repeat;
+	mix-blend-mode: soft-light;
+	opacity: 0.34;
+	pointer-events: none;
+}
+
+/* Bottom lip shadow (::after) */
+.crt-window__shell::after {
+	display: none;
+}
+
+/* Bezel (inner dark frame) */
+.crt-window__bezel {
+	position: relative;
+	z-index: 1;
+	padding: calc(clamp(0.75rem, 2.2vw, 1.35rem) * var(--s));
+	border: 1px solid rgba(0, 0, 0, 0.58);
+	border-radius: calc(2rem * var(--s));
+	background:
+		radial-gradient(
+			ellipse at 50% 45%,
+			rgba(32, 35, 27, 0.08) 0%,
+			rgba(13, 14, 10, 0.48) 72%,
+			rgba(0, 0, 0, 0.66) 100%
+		),
+		linear-gradient(135deg, #5f6053, #262820 62%, #12140f);
+	box-shadow:
+		inset 0 2px 2px rgba(255, 255, 255, 0.18),
+		inset 0 calc(-12px * var(--s)) calc(26px * var(--s)) rgba(0, 0, 0, 0.58),
+		0 2px 0 rgba(255, 255, 255, 0.16);
+}
+
+.crt-window__bezel::before {
+	content: "";
+	position: absolute;
+	inset: calc(0.45rem * var(--s));
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: calc(1.65rem * var(--s));
+	box-shadow:
+		inset 0 0 0 1px rgba(0, 0, 0, 0.64),
+		inset 0 0 calc(36px * var(--s)) rgba(0, 0, 0, 0.52);
+	pointer-events: none;
+}
+
+/* Glass (CRT screen) */
+.crt-window__glass {
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	border: 1px solid color-mix(in srgb, var(--term-glow-strong) 40%, transparent);
+	border-radius: calc(2.35rem * var(--s)) / calc(1.8rem * var(--s));
+	/* Solid-color fallback before the CSS-variable gradient — critical for
+		   mobile Safari where CSS var() inside background-image can silently fail
+		   after compositor pressure from rapid DOM updates. */
+	background-color: #020604;
+	background: var(
+		--term-screen-bg,
+		radial-gradient(
+			ellipse at 50% 48%,
+			rgba(23, 71, 42, 0.82) 0%,
+			rgba(6, 31, 18, 0.96) 54%,
+			#020604 100%
+		)
+	);
+	box-shadow:
+		inset 0 0 calc(18px * var(--s)) var(--term-glow-strong),
+		inset 0 0 calc(72px * var(--s)) rgba(0, 0, 0, 0.72),
+		inset 0 0 calc(140px * var(--s)) rgba(0, 0, 0, 0.82),
+		0 0 calc(36px * var(--s)) var(--term-glow-soft);
+	/* ── Geometric imperfection ──
+		   Slight manufacturing twist: a fraction of a degree of skew and a
+		   subtle barrel-distortion-like perspective hint. Together with the
+		   existing rotateX, this makes the screen feel like a real CRT glass
+		   tube rather than a flat digital rectangle. */
+	transform: translateZ(0) rotateX(calc(0.45deg * var(--s)))
+		skewX(calc(0.08deg * var(--s)));
+}
+
+/* On mobile: strip the screen-glass perspective transform which can trigger
+	   GPU compositor re-evaluation on every DOM mutation. */
+@media (max-width: 639px) {
+	.crt-window__glass {
+		transform: translateZ(0);
+	}
+}
+
+/* Glass reflection streak */
+.crt-window__glass::before {
+	content: "";
+	position: absolute;
+	inset: -18%;
+	z-index: 5;
+	background:
+		radial-gradient(
+			ellipse at 34% 14%,
+			rgba(255, 255, 255, 0.22) 0%,
+			rgba(255, 255, 255, 0.1) 13%,
+			transparent 34%
+		),
+		linear-gradient(
+			112deg,
+			transparent 0%,
+			transparent 18%,
+			rgba(196, 255, 213, 0.11) 26%,
+			transparent 44%,
+			transparent 100%
+		);
+	mix-blend-mode: screen;
+	opacity: 0.84;
+	pointer-events: none;
+}
+
+/* On mobile: strip the glass reflection streak to reduce compositor pressure */
+@media (max-width: 639px) {
+	.crt-window__glass::before {
+		background: linear-gradient(112deg, transparent 0%, transparent 100%);
+		opacity: 0;
+	}
+}
+
+/* Scanlines overlay + Trinitron aperture grille + damper wires */
+.crt-window__glass::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 6;
+	background-image:
+			/* 1 — horizontal scanlines */
+		repeating-linear-gradient(
+			to bottom,
+			rgba(255, 255, 255, 0.035) 0,
+			rgba(255, 255, 255, 0.035) 1px,
+			rgba(0, 0, 0, 0.24) 2px,
+			rgba(0, 0, 0, 0.24) 4px
+		),
+		/* 2 — aperture grille (vertical RGB subpixel stripes) */
+		repeating-linear-gradient(
+				90deg,
+				rgba(255, 65, 65, 0.04) 0,
+				rgba(255, 65, 65, 0.04) 1px,
+				rgba(92, 255, 127, 0.045) 1px,
+				rgba(92, 255, 127, 0.045) 2px,
+				rgba(80, 180, 255, 0.04) 2px,
+				rgba(80, 180, 255, 0.04) 3px
+			),
+		/* 3 — convergence drift overlay (RGB color bleed at edges) */
+		radial-gradient(
+				ellipse at 50% 50%,
+				transparent 60%,
+				rgba(255, 65, 65, 0.018) 75%,
+				rgba(92, 255, 127, 0.012) 82%,
+				rgba(80, 180, 255, 0.02) 92%,
+				transparent 100%
+			),
+		/* 4 — Trinitron damper wires (two thin horizontal stabilizer wires) */
+		linear-gradient(
+				to bottom,
+				transparent 32.5%,
+				rgba(0, 0, 0, 0.07) 32.5%,
+				rgba(0, 0, 0, 0.07) 32.72%,
+				transparent 32.72%,
+				transparent 66.5%,
+				rgba(0, 0, 0, 0.07) 66.5%,
+				rgba(0, 0, 0, 0.07) 66.72%,
+				transparent 66.72%
+			),
+		/* 5 — screen dust specks (tiny permanent flecks on the glass surface) */
+		radial-gradient(
+				circle at 22% 38%,
+				rgba(255, 255, 255, 0.12) 0.3px,
+				transparent 0.3px
+			),
+		radial-gradient(
+			circle at 74% 16%,
+			rgba(255, 255, 255, 0.08) 0.4px,
+			transparent 0.4px
+		),
+		radial-gradient(
+			circle at 58% 82%,
+			rgba(200, 210, 200, 0.1) 0.25px,
+			transparent 0.25px
+		),
+		radial-gradient(
+			circle at 13% 67%,
+			rgba(255, 255, 255, 0.06) 0.5px,
+			transparent 0.5px
+		),
+		radial-gradient(
+			circle at 89% 54%,
+			rgba(200, 220, 200, 0.09) 0.35px,
+			transparent 0.35px
+		);
+	background-size:
+		100% 4px,
+		3px 100%,
+		100% 100%,
+		100% 100%,
+		/* dust specs: each one is its own size (repeated) */ 100% 100%,
+		100% 100%,
+		100% 100%,
+		100% 100%,
+		100% 100%;
+	background-repeat:
+		repeat, repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat,
+		no-repeat, no-repeat;
+	background-position:
+		0 0,
+		0 0,
+		0 0,
+		0 0,
+		/* dust spec positions */ 0 0,
+		0 0,
+		0 0,
+		0 0,
+		0 0;
+	mix-blend-mode: screen;
+	opacity: 0.74;
+	pointer-events: none;
+}
+
+/* On mobile (under 640px), strip compositor-heavy layers to prevent GPU crash.
+	   Only keep scanlines (the most recognizable CRT effect) and drop the aperture
+	   grille, convergence drift, damper wires, and dust specks which overload
+	   Safari's compositor during rapid DOM updates (e.g., streaming AI output). */
+@media (max-width: 639px) {
+	.crt-window__glass::after {
+		background-image:
+				/* 1 — horizontal scanlines only (the most essential CRT effect) */ repeating-linear-gradient(
+			to bottom,
+			rgba(255, 255, 255, 0.025) 0,
+			rgba(255, 255, 255, 0.025) 1px,
+			rgba(0, 0, 0, 0.15) 2px,
+			rgba(0, 0, 0, 0.15) 4px
+		);
+		background-size: 100% 4px;
+		background-repeat: repeat;
+		background-position: 0 0;
+		opacity: 0.5;
+	}
+}
+
+/* Screen surface (terminal only — gradient + vignette + sweep + burn-in) */
+.crt-window__screen {
+	position: relative;
+	z-index: 1;
+	min-height: calc(22rem * var(--s));
+	/* Solid fallback — critical for mobile Safari where multi-layer
+		   background-image with CSS var() can fail to render, leaving
+		   the screen transparent and content invisible. */
+	background-color: #020604;
+	background-image:
+			/* ── Screen burn-in ──
+			   Very faint ghost of persistent UI elements (status bar region,
+			   text areas) that would have accumulated phosphor wear over years
+			   of use. Barely perceptible — just enough to feel "real." */
+		radial-gradient(
+			ellipse at 28% 24%,
+			rgba(180, 255, 200, 0.015) 0%,
+			transparent 32%
+		),
+		radial-gradient(
+			ellipse at 62% 58%,
+			rgba(180, 255, 200, 0.012) 0%,
+			transparent 26%
+		),
+		radial-gradient(
+			ellipse at 8% 14%,
+			rgba(180, 255, 200, 0.01) 0%,
+			transparent 18%
+		),
+		radial-gradient(
+			ellipse at 50% 90%,
+			rgba(160, 230, 180, 0.008) 0%,
+			transparent 14%
+		),
+		var(
+			--term-screen-vignette,
+			radial-gradient(
+				ellipse at 50% 47%,
+				rgba(25, 74, 40, 0.2) 0%,
+				rgba(2, 17, 9, 0.04) 48%,
+				rgba(0, 0, 0, 0.58) 100%
+			)
+		);
+}
+
+.crt-window__screen::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 4;
+	background: radial-gradient(
+		ellipse at 50% 50%,
+		transparent 46%,
+		rgba(0, 0, 0, 0.48) 100%
+	);
+	pointer-events: none;
+}
+
+.crt-window__screen::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -18%;
+	z-index: 7;
+	height: 16%;
+	background: linear-gradient(
+		to bottom,
+		transparent,
+		var(--term-glow-soft),
+		transparent
+	);
+	filter: blur(5px);
+	animation: crt-window-sweep 5.6s linear infinite;
+	pointer-events: none;
+}
+
+/* Content layers (head, output, search, list, footer, body, progress) */
+.crt-window__head,
+.crt-window__output,
+.crt-window__search,
+.crt-window__list,
+.crt-window__footer,
+.crt-window__body,
+.crt-window__progress {
+	position: relative;
+	z-index: 3;
+}
+
+/* Header bar */
+.crt-window__head {
+	border-bottom: 1px solid var(--term-head-border, rgba(144, 255, 169, 0.16));
+	background: var(
+		--term-head-bg,
+		linear-gradient(
+			to bottom,
+			rgba(190, 255, 204, 0.08),
+			rgba(10, 35, 18, 0.06)
+		)
+	);
+	text-shadow: 0 0 8px var(--term-glow-strong, rgba(161, 255, 185, 0.42));
+}
+
+/* Terminal head extra shadow */
+.crt-window--terminal .crt-window__head {
+	box-shadow: 0 1px 18px var(--term-head-shadow, rgba(98, 255, 134, 0.06));
+}
+
+/* Status LED */
+.crt-status-led {
+	display: inline-block;
+	width: 0.52rem;
+	height: 0.52rem;
+	border-radius: 999px;
+	background: var(--term-led, #85ff8d);
+	box-shadow:
+		0 0 7px var(--term-led-glow, rgba(133, 255, 141, 0.82)),
+		0 0 18px
+			color-mix(
+				in srgb,
+				var(--term-led-glow, rgba(133, 255, 141, 0.82)) 42%,
+				transparent
+			);
+}
+
+/* Terminal output area */
+.crt-window__output {
+	color: var(--term-fg, #caffbd);
+	letter-spacing: 0;
+	text-rendering: optimizeLegibility;
+	/* ── Chromatic aberration ──
+		   Red channel slightly offset right, blue channel slightly offset left.
+		   This simulates imperfect electron beam convergence at the sub-pixel
+		   level, particularly noticeable on bright text. */
+	text-shadow:
+		0.6px 0 0 rgba(255, 80, 80, 0.1),
+		-0.6px 0 0 rgba(80, 120, 255, 0.08),
+		0 0 3px var(--term-glow-strong, rgba(132, 255, 153, 0.42)),
+		0 0 12px var(--term-glow-soft, rgba(91, 255, 136, 0.14)),
+		0 0 35px
+			color-mix(
+				in srgb,
+				var(--term-glow-soft, rgba(91, 255, 136, 0.1)) 50%,
+				transparent
+			);
+	scrollbar-color: var(--term-glow-strong, rgba(132, 255, 153, 0.45))
+		rgba(0, 0, 0, 0.18);
+	scrollbar-width: thin;
+}
+
+@media (max-width: 639px) {
+	.crt-window__output {
+		contain: layout style paint;
+	}
+}
+
+.crt-window__output::-webkit-scrollbar {
+	width: 0.55rem;
+}
+
+.crt-window__output::-webkit-scrollbar-track {
+	background: rgba(0, 0, 0, 0.22);
+	border-left: 1px solid
+		color-mix(
+			in srgb,
+			var(--term-glow-strong, rgba(140, 255, 170, 0.42)) 20%,
+			transparent
+		);
+}
+
+.crt-window__output::-webkit-scrollbar-thumb {
+	border: 2px solid rgba(0, 0, 0, 0.18);
+	border-radius: 999px;
+	background: var(--term-glow-strong, rgba(140, 255, 170, 0.42));
+	box-shadow: 0 0 10px
+		color-mix(
+			in srgb,
+			var(--term-glow-strong, rgba(140, 255, 170, 0.42)) 49%,
+			transparent
+		);
+}
+
+/* Command search bar */
+.crt-window__search {
+	border-bottom: 1px solid rgba(144, 255, 169, 0.14);
+	background: linear-gradient(
+		to bottom,
+		rgba(14, 47, 23, 0.5),
+		rgba(5, 25, 13, 0.24)
+	);
+}
+
+/* Command list scrollbar */
+.crt-window__list {
+	scrollbar-color: rgba(132, 255, 153, 0.45) rgba(0, 0, 0, 0.18);
+	scrollbar-width: thin;
+}
+
+.crt-window__list::-webkit-scrollbar {
+	width: 0.5rem;
+}
+
+.crt-window__list::-webkit-scrollbar-track {
+	background: rgba(0, 0, 0, 0.22);
+}
+
+.crt-window__list::-webkit-scrollbar-thumb {
+	border: 2px solid rgba(0, 0, 0, 0.18);
+	border-radius: 999px;
+	background: rgba(140, 255, 170, 0.42);
+	box-shadow: 0 0 10px rgba(140, 255, 170, 0.22);
+}
+
+/* Command footer */
+.crt-window__footer {
+	border-top: 1px solid rgba(144, 255, 169, 0.14);
+	background: linear-gradient(
+		to bottom,
+		rgba(14, 47, 23, 0.28),
+		rgba(5, 25, 13, 0.46)
+	);
+	color: rgba(143, 207, 153, 0.74);
+	text-shadow: 0 0 7px rgba(143, 207, 153, 0.24);
+}
+
+/* Mail body */
+.crt-window__body {
+	background: radial-gradient(
+		ellipse at 50% 54%,
+		rgba(25, 74, 40, 0.12),
+		rgba(0, 0, 0, 0.18) 100%
+	);
+}
+
+/* Mail progress bar */
+.crt-window__progress {
+	height: 0.24rem;
+	background: rgba(0, 0, 0, 0.26);
+	border-top: 1px solid rgba(144, 255, 169, 0.12);
+}
+
+.crt-window__progress > div {
+	height: 100%;
+	background: linear-gradient(
+		90deg,
+		rgba(133, 255, 141, 0.32),
+		rgba(140, 248, 255, 0.84),
+		rgba(133, 255, 141, 0.6)
+	);
+	box-shadow:
+		0 0 8px rgba(140, 248, 255, 0.44),
+		0 0 18px rgba(133, 255, 141, 0.18);
+	transition: none;
+}
+
+/* Control deck */
+.crt-window__deck {
+	position: relative;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: calc(1rem * var(--s));
+	margin-top: calc(clamp(0.65rem, 1.5vw, 1rem) * var(--s));
+	padding: 0 calc(clamp(0.25rem, 1vw, 0.65rem) * var(--s));
+}
+
+/* Deck inner element sizing */
+.crt-window__deck .crt-brand-plate {
+	font-size: calc(0.6rem * var(--s));
+	letter-spacing: calc(0.22em * var(--s));
+	padding: calc(0.3rem * var(--s)) calc(0.55rem * var(--s));
+}
+
+.crt-window__deck .crt-vent-slots {
+	gap: calc(clamp(0.28rem, 1vw, 0.55rem) * var(--s));
+}
+
+.crt-window__deck .crt-vent-slots span {
+	width: calc(clamp(1.3rem, 4vw, 2.6rem) * var(--s));
+	height: calc(0.28rem * var(--s));
+}
+
+.crt-window__deck .crt-power-button {
+	width: calc(2rem * var(--s));
+	height: calc(2rem * var(--s));
+}
+
+.crt-window__deck .crt-power-button span {
+	width: calc(0.58rem * var(--s));
+	height: calc(0.58rem * var(--s));
+}
+
+/* ── Brand plate (shared) ── */
+.crt-brand-plate {
+	border: 1px solid rgba(0, 0, 0, 0.38);
+	border-radius: 0.25rem;
+	background:
+		linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(0, 0, 0, 0.06)),
+		#8b897c;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.4),
+		inset -1px -1px 2px rgba(0, 0, 0, 0.18),
+		1px 2px 3px rgba(0, 0, 0, 0.34);
+	color: rgba(20, 20, 18, 0.66);
+	font-weight: 700;
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.24);
+	transition:
+		transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1),
+		box-shadow 180ms ease,
+		filter 180ms ease;
+}
+
+.crt-brand-plate:hover {
+	transform: translateY(-1px);
+	filter: brightness(1.06);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.48),
+		inset -1px -1px 2px rgba(0, 0, 0, 0.18),
+		0 3px 8px rgba(0, 0, 0, 0.36);
+}
+
+.crt-brand-plate:active {
+	transform: scale(0.95);
+	transition-duration: 50ms;
+}
+
+/* Daylight machine: the engraved plate lifts with the shell */
+.light .crt-brand-plate {
+	border-color: rgba(0, 0, 0, 0.28);
+	background:
+		linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(0, 0, 0, 0.04)),
+		#cfccc0;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.75),
+		inset -1px -1px 2px rgba(0, 0, 0, 0.14),
+		1px 2px 3px rgba(15, 23, 42, 0.22);
+	color: rgba(30, 29, 26, 0.72);
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ── Vent slots (shared) ── */
+.crt-vent-slots {
+	display: flex;
+	flex: 1;
+	justify-content: center;
+	gap: clamp(0.28rem, 1vw, 0.55rem);
+	max-width: 15rem;
+	position: relative;
+}
+
+/* Heat shimmer — invisible convection above the vent slots */
+.crt-vent-slots::after {
+	content: "";
+	position: absolute;
+	top: calc(-2.2rem * var(--s, 1));
+	left: -10%;
+	right: -10%;
+	height: calc(2.2rem * var(--s, 1));
+	z-index: 1;
+	background: linear-gradient(
+		to bottom,
+		transparent 0%,
+		rgba(255, 255, 240, 0.012) 25%,
+		rgba(255, 255, 240, 0.008) 50%,
+		transparent 100%
+	);
+	filter: blur(10px);
+	opacity: 0;
+	animation: crt-heat-shimmer 4.8s ease-in-out infinite;
+	transform-origin: bottom center;
+	pointer-events: none;
+}
+
+@keyframes crt-heat-shimmer {
+	0% {
+		opacity: 0;
+		transform: translateY(4px) scaleX(1) skewX(0deg);
+	}
+	15% {
+		opacity: 0.6;
+		transform: translateY(-2px) scaleX(1.04) skewX(0.5deg);
+	}
+	35% {
+		opacity: 0.4;
+		transform: translateY(0) scaleX(0.97) skewX(-0.3deg);
+	}
+	55% {
+		opacity: 0.55;
+		transform: translateY(-3px) scaleX(1.02) skewX(0.2deg);
+	}
+	75% {
+		opacity: 0.3;
+		transform: translateY(-1px) scaleX(0.99) skewX(-0.1deg);
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(4px) scaleX(1) skewX(0deg);
+	}
+}
+
+.crt-vent-slots span {
+	width: clamp(1.3rem, 4vw, 2.6rem);
+	height: 0.28rem;
+	border-radius: 999px;
+	background: rgba(24, 25, 21, 0.55);
+	box-shadow:
+		inset 0 1px 1px rgba(0, 0, 0, 0.72),
+		0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+/* Daylight machine: vents soften against the lighter shell */
+.light .crt-vent-slots span {
+	background: rgba(32, 33, 28, 0.42);
+	box-shadow:
+		inset 0 1px 1px rgba(0, 0, 0, 0.55),
+		0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ── Power button (shared) ── */
+.crt-power-button {
+	position: relative;
+	display: grid;
+	width: 2rem;
+	height: 2rem;
+	place-items: center;
+	border: 1px solid rgba(0, 0, 0, 0.52);
+	border-radius: 999px;
+	background:
+		radial-gradient(
+			circle at 35% 25%,
+			rgba(255, 255, 255, 0.48),
+			transparent 28%
+		),
+		linear-gradient(145deg, #a04d42, #4a1714 72%);
+	box-shadow:
+		inset 0 1px 1px rgba(255, 255, 255, 0.36),
+		inset -4px -5px 10px rgba(0, 0, 0, 0.36),
+		0 2px 5px rgba(0, 0, 0, 0.46);
+	transition:
+		background 300ms ease,
+		filter 180ms ease,
+		transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1),
+		box-shadow 180ms ease;
+	cursor: pointer;
+}
+
+.crt-power-button:hover {
+	filter: brightness(1.12);
+	transform: translateY(-1px);
+	box-shadow:
+		inset 0 1px 1px rgba(255, 255, 255, 0.42),
+		inset -4px -5px 10px rgba(0, 0, 0, 0.36),
+		0 0 14px rgba(255, 89, 76, 0.34),
+		0 3px 7px rgba(0, 0, 0, 0.5);
+}
+
+/* Power button click spring-bounce */
+.crt-power-button:active {
+	transform: scale(0.88);
+	transition-duration: 50ms;
+	filter: brightness(0.85);
+}
+
+@keyframes crt-power-click {
+	0% {
+		transform: scale(1) translateY(0);
+	}
+	20% {
+		transform: scale(0.88) translateY(1px);
+	}
+	50% {
+		transform: scale(1.06) translateY(-2px);
+	}
+	75% {
+		transform: scale(0.97) translateY(0);
+	}
+	100% {
+		transform: scale(1) translateY(0);
+	}
+}
+
+.crt-power-button:focus-visible {
+	outline: 2px solid rgba(190, 255, 204, 0.85);
+	outline-offset: 3px;
+}
+
+/* Daylight machine: the phosphor focus ring is invisible on ivory —
+	   switch to the brand violet ink tier */
+.light .crt-power-button:focus-visible {
+	outline-color: rgba(var(--ai-violet-rgb), 0.75);
+}
+
+.crt-power-button span {
+	width: 0.58rem;
+	height: 0.58rem;
+	border-radius: 999px;
+	background: #ff8a7c;
+	box-shadow:
+		0 0 8px rgba(255, 99, 87, 0.72),
+		0 0 18px rgba(255, 99, 87, 0.3);
+}
+
+/* Active (green) state for power button when toggled on */
+.crt-power-button[data-active="true"] {
+	background:
+		radial-gradient(
+			circle at 35% 25%,
+			rgba(255, 255, 255, 0.48),
+			transparent 28%
+		),
+		linear-gradient(145deg, #42a04d, #174a1a 72%);
+}
+
+.crt-power-button[data-active="true"]:hover {
+	box-shadow:
+		inset 0 1px 1px rgba(255, 255, 255, 0.42),
+		inset -4px -5px 10px rgba(0, 0, 0, 0.36),
+		0 0 14px rgba(76, 255, 89, 0.34),
+		0 3px 7px rgba(0, 0, 0, 0.5);
+}
+
+.crt-power-button[data-active="true"] span {
+	background: #7cff8a;
+	box-shadow:
+		0 0 8px rgba(87, 255, 99, 0.72),
+		0 0 18px rgba(87, 255, 99, 0.3);
+}
+
+/* Loading/pulse state for power button while terminal is booting */
+.crt-power-button[data-loading] {
+	animation: crt-power-load-pulse 1.2s ease-in-out infinite;
+}
+
+.crt-power-button[data-loading] span {
+	animation: crt-power-load-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes crt-power-load-pulse {
+	0%,
+	100% {
+		filter: brightness(0.9);
+		transform: scale(1);
+	}
+	50% {
+		filter: brightness(1.15);
+		transform: scale(1.04);
+	}
+}
+
+@keyframes crt-power-load-glow {
+	0%,
+	100% {
+		opacity: 1;
+		box-shadow:
+			0 0 8px rgba(255, 99, 87, 0.72),
+			0 0 18px rgba(255, 99, 87, 0.3);
+	}
+	50% {
+		opacity: 0.55;
+		box-shadow:
+			0 0 14px rgba(255, 99, 87, 0.9),
+			0 0 28px rgba(255, 99, 87, 0.5);
+	}
+}
+
+/* ── Screen sweep animation ── */
+@keyframes crt-window-sweep {
+	0% {
+		transform: translateY(0);
+		opacity: 0;
+	}
+	12% {
+		opacity: 0.75;
+	}
+	88% {
+		opacity: 0.45;
+	}
+	100% {
+		transform: translateY(760%);
+		opacity: 0;
+	}
+}
+
+/* ── Unique command palette elements ── */
+.crt-command-clear {
+	border: 1px solid rgba(140, 255, 170, 0.18);
+	border-radius: 999px;
+	background: rgba(140, 255, 170, 0.06);
+	color: rgba(202, 255, 189, 0.7);
+	font-size: 0.7rem;
+	line-height: 1;
+	padding: 0.38rem 0.55rem;
+	text-shadow: 0 0 7px rgba(202, 255, 189, 0.35);
+	transition:
+		border-color 160ms ease,
+		background-color 160ms ease,
+		color 160ms ease;
+}
+
+.crt-command-clear:hover,
+.crt-command-clear:focus-visible {
+	border-color: rgba(140, 248, 255, 0.42);
+	background: rgba(140, 248, 255, 0.08);
+	color: rgba(220, 255, 214, 0.92);
+	outline: none;
+}
+
+.crt-command-row {
+	border-color: transparent;
+	color: #caffbd;
+	text-shadow:
+		0 0 7px rgba(202, 255, 189, 0.38),
+		0 0 18px rgba(91, 255, 136, 0.1);
+}
+
+.crt-command-row:hover,
+.crt-command-row.is-selected {
+	border-color: rgba(140, 248, 255, 0.34);
+	background: linear-gradient(
+		90deg,
+		rgba(140, 248, 255, 0.13),
+		rgba(121, 255, 154, 0.07)
+	);
+	box-shadow:
+		inset 0 0 18px rgba(140, 248, 255, 0.08),
+		0 0 16px rgba(91, 255, 136, 0.08);
+}
+
+.crt-command-icon {
+	border-color: rgba(140, 255, 170, 0.2);
+	background: rgba(140, 255, 170, 0.06);
+	color: rgba(220, 255, 214, 0.82);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.08),
+		0 0 10px rgba(140, 255, 170, 0.08);
+}
+
+.crt-command-row.is-selected .crt-command-icon {
+	border-color: rgba(140, 248, 255, 0.42);
+	background: rgba(140, 248, 255, 0.12);
+	color: rgba(140, 248, 255, 0.96);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.12),
+		0 0 14px rgba(140, 248, 255, 0.2);
+}
+
+.crt-command-shortcut {
+	color: rgba(140, 248, 255, 0.62);
+	text-shadow: 0 0 7px rgba(140, 248, 255, 0.28);
+}
+
+.crt-command-kbd {
+	border: 1px solid rgba(140, 255, 170, 0.22);
+	border-radius: 0.22rem;
+	background: rgba(140, 255, 170, 0.07);
+	color: rgba(220, 255, 214, 0.84);
+	font-family: var(--font-ioskeley-mono), monospace;
+	font-size: 0.62rem;
+	line-height: 1;
+	padding: 0.18rem 0.28rem;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.08),
+		0 0 8px rgba(140, 255, 170, 0.08);
+}
+
+/* ── Unique mail toast elements ── */
+.crt-mail-cursor {
+	display: inline-block;
+	width: 0.5em;
+	height: 1em;
+	margin-left: 0.12rem;
+	vertical-align: -0.13em;
+	background: rgba(140, 248, 255, 0.76);
+	box-shadow:
+		0 0 7px rgba(140, 248, 255, 0.62),
+		0 0 16px rgba(140, 248, 255, 0.24);
+	animation: blink 1s step-end infinite;
+}
+
+.crt-mail-cursor--idle {
+	background: rgba(133, 255, 141, 0.72);
+	box-shadow:
+		0 0 7px rgba(133, 255, 141, 0.62),
+		0 0 16px rgba(133, 255, 141, 0.24);
+}
+
+.crt-mail-led {
+	width: 0.82rem;
+	height: 0.82rem;
+	border: 1px solid rgba(0, 0, 0, 0.4);
+	border-radius: 999px;
+	background:
+		radial-gradient(
+			circle at 35% 28%,
+			rgba(255, 255, 255, 0.7),
+			transparent 34%
+		),
+		#85ff8d;
+	box-shadow:
+		inset -2px -2px 5px rgba(0, 0, 0, 0.24),
+		0 0 8px rgba(133, 255, 141, 0.62),
+		0 0 16px rgba(133, 255, 141, 0.24);
+}
+
+/* ── AI generating state: strip compositor-heavy effects on mobile ── */
+@media (max-width: 639px) {
+	.crt-window--generating .crt-window__output {
+		text-shadow: none !important;
+	}
+	.crt-window--generating .crt-window__output > div {
+		text-shadow: none !important;
+	}
+	.crt-window--generating .crt-window__glass {
+		transform: none !important;
+	}
+	.crt-window--generating .crt-window__glass::after {
+		opacity: 0 !important;
+	}
+	.crt-window--generating .crt-window__screen {
+		background-image: none !important;
+		background-color: #020604 !important;
+	}
+	.crt-window--generating .crt-window__screen::after {
+		animation: none !important;
+		opacity: 0 !important;
+	}
+	.crt-window--generating .crt-window__screen::before {
+		opacity: 0 !important;
+	}
+	.crt-window--generating .crt-window__head {
+		text-shadow: none !important;
+	}
+	.crt-window--generating .crt-status-led {
+		box-shadow: none !important;
+	}
+}
+
+/* ── Mobile viewport-safe modal sizing ─────────────────────────
+	   iOS in-app browsers (Instagram, X/Twitter webviews) resolve `vh`
+	   against the *large* viewport (URL bar fully retracted) and never
+	   shrink it when the virtual keyboard opens — the keyboard is an
+	   overlay. That made the fixed terminal modal taller than what the user
+	   could actually see, clipping the bottom (deck / power button).
+	   `--app-vh` (set by `useVisualViewportHeight`) tracks the *visible*
+	   viewport height, including keyboard open/close; these rules size the
+	   modal against it, falling back to plain `vh` until the hook runs. */
+
+/* Fixed to the visible viewport (not inset-0), scrollable rather than
+	   overflow-hidden, and safe-area aware. The modal window uses `m-auto`
+	   to center when it fits and scroll to the bottom when it doesn't. */
+.crt-modal-wrap {
+	position: fixed;
+	left: 0;
+	right: 0;
+	top: 0;
+	height: 100vh; /* fallback: large viewport */
+	height: var(--app-vh, 100vh); /* visible viewport (keyboard-aware) */
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 0.75rem;
+	padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+@media (min-width: 640px) {
+	.crt-modal-wrap {
+		padding: 1.25rem;
+		padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+	}
+}
+
+/* Cap the window to the visible viewport (fallback + var). The var()
+	   fallback is the unmultiplied 100vh so the calc resolves to 94vh when
+	   the hook hasn't run yet. */
+.crt-window--modal {
+	max-height: 94vh;
+	max-height: calc(var(--app-vh, 100vh) * 0.94);
+}
+
+/* Modal output height tracks the visible viewport so the deck stays
+	   reachable; desktop keeps its fixed 440px height. */
+.crt-window__output--modal {
+	height: 54vh;
+	height: calc(var(--app-vh, 100vh) * 0.54);
+}
+
+@media (min-width: 640px) {
+	.crt-window__output--modal {
+		height: 440px;
+	}
+}
+
+/* ── Responsive overrides ── */
+@media (max-width: 640px) {
+	.crt-window__shell {
+		border-radius: calc(1.6rem * var(--s));
+		padding: calc(0.62rem * var(--s));
+	}
+
+	.crt-window__bezel {
+		border-radius: calc(1.28rem * var(--s));
+		padding: calc(0.55rem * var(--s));
+	}
+
+	.crt-window__bezel::before {
+		inset: calc(0.28rem * var(--s));
+		border-radius: calc(1.05rem * var(--s));
+	}
+
+	.crt-window__glass {
+		border-radius: calc(1.35rem * var(--s)) / calc(1.05rem * var(--s));
+	}
+
+	.crt-window__screen {
+		min-height: calc(20rem * var(--s));
+	}
+
+	.crt-window__deck {
+		gap: calc(0.55rem * var(--s));
+	}
+
+	.crt-window__deck .crt-brand-plate {
+		font-size: calc(0.52rem * var(--s));
+		letter-spacing: calc(0.14em * var(--s));
+		padding: calc(0.24rem * var(--s)) calc(0.38rem * var(--s));
+	}
+
+	.crt-window__deck .crt-vent-slots {
+		gap: calc(0.22rem * var(--s));
+	}
+
+	.crt-window__deck .crt-vent-slots span {
+		width: calc(1rem * var(--s));
+	}
+
+	.crt-window__deck .crt-power-button {
+		width: calc(1.7rem * var(--s));
+		height: calc(1.7rem * var(--s));
+	}
+
+	.crt-window__footer {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.crt-window__screen::after,
+	.crt-power-button {
+		animation: none;
+		transition: none;
+	}
+
+	.crt-mail-cursor {
+		animation: none;
+	}
+}
+
+/* Cyber-terminal boot sequence animations */
+@keyframes blink {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
+}
+
+/* Cursor blink for terminal input */
+.terminal-cursor-blink {
+	animation: blink 1s step-end infinite;
+}
+
+.book-row-static,
+.book-row-static *,
+.book-row-static::before,
+.book-row-static::after {
+	transition: none !important;
+	transform: none !important;
+	animation: none !important;
+	will-change: auto !important;
+	backface-visibility: visible !important;
+	perspective: none !important;
+}

@@ -1,0 +1,129 @@
+{
+	"name": "scm",
+	"version": "0.2.4",
+	"private": true,
+	"license": "MIT",
+	"description": "SCM: local-first photo & video search (vision, scenes, OCR, dialogue)",
+	"author": "Allen Lee",
+	"main": "main.js",
+	"packageManager": "bun@1.3.14",
+	"overrides": {
+		"sharp": "0.33.4"
+	},
+	"scripts": {
+		"build": "vite build",
+		"dev": "bun run build && electron .",
+		"start": "electron .",
+		"smoke:indexer": "node indexer/indexer.js --smoke",
+		"bench:inference": "node scripts/bench-inference.js",
+		"bench:enrich": "node scripts/bench-enrich.js",
+		"bench:detect": "node scripts/bench-detect.js",
+		"test:detect-options": "node test/detect-options.test.js",
+		"test:detect-deep": "node test/detect-deep.test.js",
+		"gen:text-mean": "node scripts/gen-text-mean.js",
+		"test:text-mean": "node test/text-mean-constant.test.js",
+		"test:planning": "node scripts/test-scene-planning.js",
+		"test:pump-enrichment": "node test/pump-enrichment.test.js",
+		"test:pump-transcription": "node test/pump-transcription.test.js",
+		"test:transcript-fusion": "node test/transcript-fusion.test.js",
+		"test:transcript-deep": "node test/transcript-deep.test.js",
+		"test:transcript-dialogue-rank": "node test/transcript-dialogue-rank.test.js",
+		"test:transcribe-audio-probe": "node test/transcribe-audio-probe.test.js",
+		"test:whisper-model": "node test/whisper-model.test.js && bun test test/whisper-model.test.ts",
+		"test:dialogue-exact": "node test/dialogue-exact.test.js",
+		"test:ask": "node test/ask-models.test.js && node test/ask-retrieve.test.js && node test/ask-server.test.js && bun test test/ask-scope.test.ts",
+		"test:import-order": "node test/import-order.test.js",
+		"test:mime-sniff": "node test/mime-sniff.test.js",
+		"test:packaged-files": "node test/packaged-files.test.js",
+		"test:media-order": "bun test test/media-order.test.ts",
+		"test:all": "bash scripts/smoke-all.sh",
+		"lint": "eslint .",
+		"format:check": "prettier --check .",
+		"format": "prettier --write .",
+		"smoke:ask": "bash -c 'TMP=$(mktemp -d /tmp/scm-ask-XXXX) && ln -s \"$HOME/Library/Application Support/scm/models\" \"$TMP/models\" 2>/dev/null || true; ELECTRON_SMOKE_ASK=1 MEMORIES_DATA_DIR=$TMP electron .'",
+		"smoke:cto": "bash -c 'TMP=$(mktemp -d /tmp/scm-cto-XXXX) && ln -s \"$HOME/Library/Application Support/scm/models\" \"$TMP/models\" 2>/dev/null || true; mkdir -p \"$TMP/ocr-data\"; for f in \"$HOME/Library/Application Support/scm/ocr-data\"/*.traineddata; do [ -e \"$f\" ] || continue; ln -s \"$f\" \"$TMP/ocr-data/\"; done; MEMORIES_DATA_DIR=$TMP ELECTRON_SMOKE=1 ELECTRON_SMOKE_CTO=1 electron .'",
+		"test:cto": "bash -c 'TMP=$(mktemp -d /tmp/scm-cto-XXXX) && ln -s \"$HOME/Library/Application Support/scm/models\" \"$TMP/models\" 2>/dev/null || true; MEMORIES_DATA_DIR=$TMP ELECTRON_SMOKE=1 ELECTRON_SMOKE_CTO=1 electron .'",
+		"smoke:phase4": "bash -c 'TMP=$(mktemp -d /tmp/scm-phase4-XXXX) && ln -s \"$HOME/Library/Application Support/scm/models\" \"$TMP/models\" && mkdir -p \"$TMP/ocr-data\" && for f in \"$HOME/Library/Application Support/scm/ocr-data\"/*.traineddata; do [ -e \"$f\" ] || continue; ln -s \"$f\" \"$TMP/ocr-data/\"; done; MEMORIES_DATA_DIR=$TMP ELECTRON_SMOKE=1 ELECTRON_SMOKE_PHASE4=1 electron .'",
+		"smoke:deep": "bash -c 'TMP=$(mktemp -d /tmp/scm-deep-XXXX) && ln -s \"$HOME/Library/Application Support/scm/models\" \"$TMP/models\" && mkdir -p \"$TMP/ocr-data\" && for f in \"$HOME/Library/Application Support/scm/ocr-data\"/*.traineddata; do [ -e \"$f\" ] || continue; ln -s \"$f\" \"$TMP/ocr-data/\"; done; MEMORIES_DATA_DIR=$TMP ELECTRON_SMOKE=1 ELECTRON_SMOKE_DEEP=1 electron .'",
+		"smoke:perf": "bash -c 'TMP=$(mktemp -d /tmp/scm-perf-XXXX) && ln -s \"$HOME/Library/Application Support/scm/models\" \"$TMP/models\" && mkdir -p \"$TMP/ocr-data\" && for f in \"$HOME/Library/Application Support/scm/ocr-data\"/*.traineddata; do [ -e \"$f\" ] || continue; ln -s \"$f\" \"$TMP/ocr-data/\"; done; MEMORIES_DATA_DIR=$TMP ELECTRON_SMOKE=1 ELECTRON_SMOKE_PERF=1 electron .'",
+		"smoke:grid": "bun run build && bash -c 'TMP=$(mktemp -d /tmp/scm-grid-XXXX) && ln -s \"$HOME/Library/Application Support/scm/models\" \"$TMP/models\" 2>/dev/null || true; mkdir -p \"$TMP/ocr-data\"; for f in \"$HOME/Library/Application Support/scm/ocr-data\"/*.traineddata; do [ -e \"$f\" ] || continue; ln -s \"$f\" \"$TMP/ocr-data/\"; done; MEMORIES_DATA_DIR=$TMP node scripts/perf-grid-fixture.js && MEMORIES_DATA_DIR=$TMP ELECTRON_SMOKE=1 ELECTRON_SMOKE_GRID=1 electron .'",
+		"smoke:ui-review": "bun run build && bash -c 'TMP=$(mktemp -d /tmp/scm-ui-XXXX) && ln -s \"$HOME/Library/Application Support/scm/models\" \"$TMP/models\" 2>/dev/null || true; MEMORIES_DATA_DIR=$TMP ELECTRON_SMOKE_UI_REVIEW=1 electron .'",
+		"dist": "bun run build && electron-builder --mac",
+		"dist:unsigned": "bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
+		"test:decode-ahead": "node test/decode-ahead.test.js",
+		"test:raw-frame-parity": "node test/raw-frame-parity.test.js"
+	},
+	"dependencies": {
+		"@huggingface/transformers": "3.8.1",
+		"@tabler/icons-react": "3.10.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"sharp": "0.33.4",
+		"tesseract.js": "7.0.0"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@types/react": "^19.0.0",
+		"@types/react-dom": "^19.0.0",
+		"@vitejs/plugin-react": "^4.3.4",
+		"autoprefixer": "^10.4.19",
+		"electron": "^43.7.0",
+		"electron-builder": "^26.15.3",
+		"eslint": "^10.10.0",
+		"eslint-plugin-react-hooks": "^7.1.1",
+		"ffmpeg-static": "^5.3.0",
+		"globals": "^17.12.0",
+		"postcss": "^8.4.39",
+		"prettier": "^3.9.6",
+		"tailwindcss": "^3.4.4",
+		"typescript": "^5.5.3",
+		"typescript-eslint": "^8.70.0",
+		"vite": "^6.0.0"
+	},
+	"build": {
+		"appId": "com.allenv0.scm",
+		"productName": "SCM",
+		"compression": "maximum",
+		"electronDist": "node_modules/electron/dist",
+		"electronLanguages": [
+			"en"
+		],
+		"files": [
+			"dist/**",
+			"indexer/**",
+			"main-lib/**",
+			"main.js",
+			"preload.js",
+			"screenshot-probe.js",
+			"package.json",
+			"!node_modules/@huggingface/transformers/dist/**/*.map"
+		],
+		"asarUnpack": [
+			"node_modules/sharp/**",
+			"node_modules/@img/**",
+			"node_modules/onnxruntime-node/**",
+			"node_modules/tesseract.js/**",
+			"node_modules/tesseract.js-core/**"
+		],
+		"extraResources": [
+			{
+				"from": "node_modules/ffmpeg-static/ffmpeg",
+				"to": "ffmpeg"
+			}
+		],
+		"directories": {
+			"output": "dist-app"
+		},
+		"mac": {
+			"target": [
+				"dmg",
+				"zip"
+			],
+			"category": "public.app-category.photography",
+			"icon": "public/images/icns/SCM.icns"
+		},
+		"dmg": {
+			"title": "SCM"
+		}
+	}
+}

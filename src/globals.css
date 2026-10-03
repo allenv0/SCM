@@ -1,0 +1,127 @@
+/* Memories app styles — lifted from the site's globals.css minus the
+   site-only bits (react-tweet, prose font). The CRT/plastic aesthetic
+   lives in ./styles/*. */
+
+@import "./styles/effects.css";
+@import "./styles/crt-terminal.css";
+@import "./styles/shelves.css";
+@import "./styles/film.css";
+@import "./styles/prose.css";
+@import "./styles/screen.css";
+@import "./styles/transitions.css";
+@import "./styles/light-theme.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+	font-family: "Ioskeley Mono";
+	src: url("/fonts/IoskeleyMono-Regular.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Ioskeley Mono";
+	src: url("/fonts/IoskeleyMono-Medium.woff2") format("woff2");
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Ioskeley Mono";
+	src: url("/fonts/IoskeleyMono-SemiBold.woff2") format("woff2");
+	font-weight: 600;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Ioskeley Mono";
+	src: url("/fonts/IoskeleyMono-Bold.woff2") format("woff2");
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+@layer base {
+	:root {
+		--font-ioskeley-mono: "Ioskeley Mono", monospace;
+		--brand-purple: #8b5cf6;
+		--brand-cyan: #06b6d4;
+
+		/* ---- AI processing color system ----
+		   Two layers, one rule:
+		     STATE   = engine status → small dot/ring in a semantic hue
+		               (ready / busy / error / idle), used on the search
+		               bar ring + model picker LED.
+		     PROCESS = work in progress → fills/arcs in the brand spectrum
+		               (cyan → violet → fuchsia), used for import, model
+		               migration, and model warm-up. A running process
+		               always pairs amber STATE with spectrum PROCESS.
+		   Every AI surface reads these tokens — never raw hexes. */
+
+		/* Process spectrum (the "AI core" identity) */
+		--ai-cyan: #22d3ee;
+		--ai-cyan-rgb: 34, 211, 238;
+		--ai-violet: #8b5cf6;
+		--ai-violet-rgb: 139, 92, 246;
+		--ai-fuchsia: #d946ef;
+		--ai-fuchsia-rgb: 217, 70, 239;
+
+		/* State semantics */
+		--ai-ready: #10b981;
+		--ai-ready-rgb: 16, 185, 129;
+		--ai-busy: #fbbf24;
+		--ai-busy-rgb: 251, 191, 36;
+		--ai-error: #f43f5e;
+		--ai-error-rgb: 244, 63, 94;
+		--ai-idle: #94a3b8;
+		--ai-idle-rgb: 148, 163, 184;
+
+		/* Spectrum ink (labels, %, icons): deeper on light plastic,
+		   brighter on the dark glass AI surfaces */
+		--ai-cyan-ink: #0891b2;
+		--ai-cyan-ink-dark: #67e8f9;
+		--ai-violet-ink: #7c3aed;
+		--ai-violet-ink-dark: #c4b5fd;
+		--ai-fuchsia-ink: #c026d3;
+		--ai-fuchsia-ink-dark: #f0abfc;
+	}
+
+	html {
+		text-rendering: optimizeLegibility;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		overflow-x: hidden;
+		will-change: color-scheme;
+		transition: background-color 0s !important;
+		color-scheme: dark;
+	}
+
+	body {
+		will-change: background-color;
+		transition: background-color 0s !important;
+		backface-visibility: hidden;
+		-webkit-backface-visibility: hidden;
+		/* Night canvas — the room lights are off. Light mode overrides below. */
+		background-color: #0b0d10;
+	}
+
+	/* Daylight machine: soft studio-gray wall with a faint vertical wash,
+	   so the platinum plastic panels read as lit hardware, not floating
+	   white cards. */
+	html.light body {
+		background-color: #e3e6eb;
+		background-image: linear-gradient(
+			to bottom,
+			#edeff3 0%,
+			#e4e7ec 42%,
+			#dcdfe5 100%
+		);
+		background-attachment: fixed;
+	}
+}

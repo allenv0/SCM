@@ -1,0 +1,13 @@
+# Exact, validated dev-only conversion dependencies for scripts/coreml/.
+# A new toolchain version requires a new conversion artifact and a fresh
+# full gate run (plan §2.3). No ranges — pin everything that affects the
+# traced graph or the ML Program bytes.
+torch==2.6.0
+transformers==4.49.0
+coremltools==8.2.0
+numpy==1.26.4
+Pillow==11.1.0
+huggingface_hub==0.29.1
+safetensors==0.5.3
+sentencepiece==0.2.0
+protobuf==5.29.3

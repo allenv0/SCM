@@ -1,0 +1,70 @@
+/* Retro desktop CRT effects — screen-scanlines, curvature, glass reflection. */
+
+/* Retro desktop CRT effects */
+.screen-scanlines {
+	opacity: 0.04;
+	background-image: repeating-linear-gradient(
+		0deg,
+		transparent,
+		transparent 2px,
+		rgba(0, 0, 0, 0.25) 2px,
+		rgba(0, 0, 0, 0.25) 4px
+	);
+}
+
+.dark .screen-scanlines {
+	opacity: 0.08;
+}
+
+/* On mobile: reduce scanlines opacity further to lower compositor pressure */
+@media (max-width: 639px) {
+	.screen-scanlines {
+		opacity: 0.02;
+	}
+	.dark .screen-scanlines {
+		opacity: 0.04;
+	}
+}
+
+.screen-curvature {
+	box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.15);
+}
+
+.dark .screen-curvature {
+	box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.8);
+}
+
+/* On mobile: reduce curvature intensity to lower compositor pressure */
+@media (max-width: 639px) {
+	.screen-curvature {
+		box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.08);
+	}
+	.dark .screen-curvature {
+		box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.4);
+	}
+}
+
+.glass-reflection {
+	background: linear-gradient(
+		to bottom,
+		rgba(255, 255, 255, 0.4) 0%,
+		rgba(255, 255, 255, 0.1) 50%,
+		transparent 100%
+	);
+}
+
+.dark .glass-reflection {
+	background: linear-gradient(
+		to bottom,
+		rgba(255, 255, 255, 0.15) 0%,
+		rgba(255, 255, 255, 0.05) 50%,
+		transparent 100%
+	);
+}
+
+/* On mobile: hide glass reflection to reduce compositor pressure */
+@media (max-width: 639px) {
+	.glass-reflection {
+		display: none;
+	}
+}

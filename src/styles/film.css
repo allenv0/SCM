@@ -1,0 +1,1046 @@
+/* Film Roll system — reel, strip, frames, viewfinder overlay, ratings, advance buttons, reduced motion. */
+
+/* ── Film Roll System ────────────────────── */
+.film-roll {
+	display: flex;
+	align-items: center;
+	position: relative;
+}
+
+.film-reel {
+	position: relative;
+	width: 3rem;
+	height: 3rem;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.4));
+	padding: 0;
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+	transition:
+		transform 200ms ease,
+		filter 200ms ease;
+}
+
+.film-reel:hover {
+	transform: scale(1.08);
+	filter: drop-shadow(0 3px 5px rgb(0 0 0 / 0.5));
+}
+
+.film-reel:active {
+	transform: scale(0.96);
+}
+
+.film-reel-ring {
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	position: relative;
+}
+
+/* Outer brushed-steel rim with bevel */
+.film-reel-rim {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	background:
+		radial-gradient(
+			circle at 35% 30%,
+			rgb(255 255 255 / 0.22) 0%,
+			transparent 35%
+		),
+		repeating-conic-gradient(
+			from 0deg,
+			rgb(90 90 98 / 0.18) 0deg,
+			rgb(60 60 66 / 0.18) 0.4deg,
+			rgb(90 90 98 / 0.18) 0.8deg
+		),
+		radial-gradient(circle at 50% 50%, #4a4a52 0%, #2a2a30 55%, #16161a 100%);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.28),
+		inset 0 -1px 1px rgb(0 0 0 / 0.6),
+		inset 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+
+/* Recessed inner well where the film sits */
+.film-reel-well {
+	position: absolute;
+	inset: 16%;
+	border-radius: 50%;
+	background: radial-gradient(circle at 50% 40%, #0c0c0e 0%, #050507 75%);
+	box-shadow:
+		inset 0 2px 3px rgb(0 0 0 / 0.85),
+		inset 0 -1px 0 rgb(255 255 255 / 0.04);
+}
+
+/* Tapered 8-arm spoke wheel via conic gradient, masked to hub→rim band */
+.film-reel-spokes {
+	position: absolute;
+	inset: 16%;
+	border-radius: 50%;
+	background: conic-gradient(
+		from 0deg,
+		rgb(170 170 180 / 0.85) 0deg 1.2deg,
+		transparent 1.2deg 45deg,
+		rgb(170 170 180 / 0.85) 45deg 46.2deg,
+		transparent 46.2deg 90deg,
+		rgb(170 170 180 / 0.85) 90deg 91.2deg,
+		transparent 91.2deg 135deg,
+		rgb(170 170 180 / 0.85) 135deg 136.2deg,
+		transparent 136.2deg 180deg,
+		rgb(170 170 180 / 0.85) 180deg 181.2deg,
+		transparent 181.2deg 225deg,
+		rgb(170 170 180 / 0.85) 225deg 226.2deg,
+		transparent 226.2deg 270deg,
+		rgb(170 170 180 / 0.85) 270deg 271.2deg,
+		transparent 271.2deg 315deg,
+		rgb(170 170 180 / 0.85) 315deg 316.2deg,
+		transparent 316.2deg 360deg
+	);
+	-webkit-mask: radial-gradient(
+		circle,
+		transparent 0,
+		transparent 22%,
+		#000 22%,
+		#000 88%,
+		transparent 88%
+	);
+	mask: radial-gradient(
+		circle,
+		transparent 0,
+		transparent 22%,
+		#000 22%,
+		#000 88%,
+		transparent 88%
+	);
+	filter: drop-shadow(0 0 0.5px rgb(0 0 0 / 0.5));
+}
+
+/* Four perimeter sprocket notches: dark annulus ring with 4 wedges cut out */
+.film-reel-sprockets {
+	position: absolute;
+	inset: 5%;
+	border-radius: 50%;
+	background: rgb(0 0 0 / 0.9);
+	-webkit-mask:
+		radial-gradient(
+			circle,
+			transparent 0,
+			transparent 78%,
+			#000 78%,
+			#000 96%,
+			transparent 96%
+		),
+		conic-gradient(
+			from 45deg,
+			transparent 0deg 4deg,
+			#000 4deg 90deg,
+			transparent 90deg 94deg,
+			#000 94deg 180deg,
+			transparent 180deg 184deg,
+			#000 184deg 270deg,
+			transparent 270deg 274deg,
+			#000 274deg 360deg
+		);
+	-webkit-mask-composite: source-in;
+	mask:
+		radial-gradient(
+			circle,
+			transparent 0,
+			transparent 78%,
+			#000 78%,
+			#000 96%,
+			transparent 96%
+		),
+		conic-gradient(
+			from 45deg,
+			transparent 0deg 4deg,
+			#000 4deg 90deg,
+			transparent 90deg 94deg,
+			#000 94deg 180deg,
+			transparent 180deg 184deg,
+			#000 184deg 270deg,
+			transparent 270deg 274deg,
+			#000 274deg 360deg
+		);
+	mask-composite: intersect;
+}
+
+/* Raised central spindle bolt */
+.film-reel-hub {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 0.7rem;
+	height: 0.7rem;
+	border-radius: 50%;
+	transform: translate(-50%, -50%);
+	background:
+		radial-gradient(
+			circle at 35% 30%,
+			rgb(255 255 255 / 0.45) 0%,
+			transparent 40%
+		),
+		radial-gradient(circle at 50% 50%, #9a9aa2 0%, #5a5a62 60%, #3a3a42 100%);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.4),
+		inset 0 -1px 1px rgb(0 0 0 / 0.6),
+		0 0 3px rgb(0 0 0 / 0.6);
+}
+
+/* Center screw catch-light */
+.film-reel-hub-cap {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 2px;
+	height: 2px;
+	border-radius: 50%;
+	transform: translate(-50%, -50%);
+	background: #cfcfd6;
+	box-shadow: 0 1px 0 rgb(0 0 0 / 0.6);
+}
+
+@keyframes reel-rotate {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.film-reel--spinning .film-reel-ring {
+	animation: reel-rotate 40s linear infinite;
+}
+
+.film-strip {
+	display: flex;
+	align-items: stretch;
+	gap: 2px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scroll-snap-type: x proximity;
+	scroll-behavior: smooth;
+	-webkit-overflow-scrolling: touch;
+	min-height: 10rem;
+	padding: 0.5rem 0.4rem;
+	position: relative;
+	background:
+		linear-gradient(
+			to bottom,
+			rgb(0 0 0 / 0.3) 0%,
+			rgb(0 0 0 / 0.06) 5%,
+			rgb(0 0 0 / 0.06) 95%,
+			rgb(0 0 0 / 0.3) 100%
+		),
+		repeating-linear-gradient(
+			90deg,
+			rgb(255 255 255 / 0.015) 0px,
+			rgb(255 255 255 / 0.015) 1px,
+			transparent 1px,
+			transparent 4px
+		),
+		rgb(12 12 15 / 0.9);
+	border-radius: 0.4rem;
+}
+
+.film-strip-frame {
+	flex-shrink: 0;
+	width: 6.5rem;
+	height: 9rem;
+	scroll-snap-align: center;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.sprocket-holes {
+	display: flex;
+	justify-content: space-around;
+	align-items: center;
+	width: 100%;
+	padding: 0 0.08rem;
+	flex-shrink: 0;
+	height: 0.35rem;
+}
+
+.sprocket-hole {
+	width: 0.28rem;
+	height: 0.28rem;
+	border-radius: 50%;
+	background: rgb(0 0 0 / 0.55);
+	border: 1px solid rgb(255 255 255 / 0.12);
+	flex-shrink: 0;
+}
+
+.film-frame {
+	position: relative;
+	flex: 1;
+	width: 100%;
+	border-radius: 0.2rem;
+	overflow: hidden;
+	border: 1px solid rgb(255 255 255 / 0.1);
+	box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+	cursor: pointer;
+	background: var(--film-bg, rgb(39 39 42));
+	transition:
+		transform 200ms ease,
+		box-shadow 200ms ease,
+		border-color 200ms ease;
+}
+
+.film-frame:hover {
+	transform: translateY(-0.25rem) scale(1.03);
+	box-shadow:
+		0 8px 20px rgb(0 0 0 / 0.45),
+		0 0 14px var(--film-accent-glow);
+	z-index: 5;
+}
+
+.film-frame-poster-wrapper {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.film-frame-poster {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	filter: var(--film-cover-filter, saturate(0.9) contrast(1.05));
+}
+
+.film-frame-label {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	padding: 0.35rem 0.2rem 0.25rem;
+	background: linear-gradient(to top, rgb(0 0 0 / 0.9), transparent 50%);
+	text-align: center;
+}
+
+.film-frame-title {
+	display: block;
+	max-width: 100%;
+	font-size: 0.6875rem; /* 11px — above the practical legibility floor */
+	font-weight: 800;
+	color: rgb(255 255 255 / 0.92);
+	text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.15;
+}
+
+.film-frame-rating {
+	display: inline-block;
+	font-size: 0.6875rem; /* 11px */
+	font-weight: 900;
+	color: rgb(255 255 255 / 0.85);
+	margin-top: 0.06rem;
+	background: rgb(0 0 0 / 0.45);
+	padding: 0.03rem 0.16rem;
+	border-radius: 9999px;
+	backdrop-filter: blur(3px);
+}
+
+.film-frame-selected {
+	transform: translateY(-0.5rem) scale(1.06);
+	z-index: 10;
+}
+
+.film-highlight {
+	position: absolute;
+	inset: 0;
+	z-index: 3;
+	border-radius: 0.2rem;
+	background: linear-gradient(
+		120deg,
+		transparent 0%,
+		rgb(255 255 255 / 0.12) 35%,
+		transparent 55%
+	);
+	opacity: 0.18;
+	pointer-events: none;
+}
+
+/* ── Camera viewfinder overlay ── */
+.viewfinder {
+	--vf-red: rgb(220 38 38);
+	--vf-red-glow: rgb(220 38 38 / 0.55);
+	--vf-red-dim: rgb(220 38 38 / 0.25);
+
+	position: absolute;
+	inset: 0;
+	z-index: 20;
+	pointer-events: none;
+	border-radius: 0.2rem;
+	overflow: hidden;
+}
+
+.vf-vignette {
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(
+		ellipse at center,
+		transparent 55%,
+		rgb(0 0 0 / 0.4) 100%
+	);
+	animation: vf-fade-in 0.2s ease-out forwards;
+}
+
+/* ── Red tally border ── */
+.vf-red-border {
+	position: absolute;
+	inset: 0;
+	border: 1.5px solid var(--vf-red);
+	border-radius: 0.2rem;
+	box-shadow:
+		inset 0 0 8px var(--vf-red-dim),
+		0 0 6px var(--vf-red-dim);
+	animation: vf-red-pulse 2s ease-in-out infinite;
+}
+
+/* ── Film grain overlay ── */
+.vf-grain {
+	position: absolute;
+	inset: -50%;
+	width: 200%;
+	height: 200%;
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+	background-size: 128px 128px;
+	opacity: 0.045;
+	mix-blend-mode: overlay;
+	pointer-events: none;
+	animation: vf-grain-drift 0.8s steps(4) infinite;
+}
+
+@keyframes vf-grain-drift {
+	0% {
+		transform: translate(0, 0);
+	}
+	25% {
+		transform: translate(-5%, -5%);
+	}
+	50% {
+		transform: translate(5%, 3%);
+	}
+	75% {
+		transform: translate(-3%, 5%);
+	}
+	100% {
+		transform: translate(0, 0);
+	}
+}
+
+/* ── LCD scanlines ── */
+.vf-scanlines {
+	position: absolute;
+	inset: 0;
+	background: repeating-linear-gradient(
+		to bottom,
+		transparent 0px,
+		transparent 1px,
+		rgb(255 255 255 / 0.018) 1px,
+		rgb(255 255 255 / 0.018) 2px
+	);
+	pointer-events: none;
+	mix-blend-mode: screen;
+}
+
+/* ── Rule-of-thirds grid ── */
+.vf-grid {
+	position: absolute;
+	inset: 0;
+}
+
+.vf-gridline {
+	position: absolute;
+	background: rgb(255 255 255 / 0.08);
+}
+
+.vf-gridline--h1 {
+	top: 33.33%;
+	left: 0;
+	right: 0;
+	height: 1px;
+}
+
+.vf-gridline--h2 {
+	top: 66.66%;
+	left: 0;
+	right: 0;
+	height: 1px;
+}
+
+.vf-gridline--v1 {
+	left: 33.33%;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+}
+
+.vf-gridline--v2 {
+	left: 66.66%;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+}
+
+/* ── AF corner brackets ── */
+.vf-bracket {
+	position: absolute;
+	width: 0.55rem;
+	height: 0.55rem;
+	opacity: 0;
+	animation: vf-bracket-snap 0.18s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+.vf-bracket--tl {
+	top: 0.18rem;
+	left: 0.18rem;
+	border-top: 1.5px solid rgb(255 255 255 / 0.92);
+	border-left: 1.5px solid rgb(255 255 255 / 0.92);
+	animation-delay: 0ms;
+}
+
+.vf-bracket--tr {
+	top: 0.18rem;
+	right: 0.18rem;
+	border-top: 1.5px solid rgb(255 255 255 / 0.92);
+	border-right: 1.5px solid rgb(255 255 255 / 0.92);
+	animation-delay: 40ms;
+}
+
+.vf-bracket--bl {
+	bottom: 0.18rem;
+	left: 0.18rem;
+	border-bottom: 1.5px solid rgb(255 255 255 / 0.92);
+	border-left: 1.5px solid rgb(255 255 255 / 0.92);
+	animation-delay: 80ms;
+}
+
+.vf-bracket--br {
+	bottom: 0.18rem;
+	right: 0.18rem;
+	border-bottom: 1.5px solid rgb(255 255 255 / 0.92);
+	border-right: 1.5px solid rgb(255 255 255 / 0.92);
+	animation-delay: 120ms;
+}
+
+/* ── Center focus point ── */
+.vf-center {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 1.2rem;
+	height: 1.2rem;
+}
+
+.vf-center-cross {
+	position: absolute;
+	inset: 0;
+	border: 1px solid rgb(255 255 255 / 0.25);
+	border-radius: 50%;
+	animation: vf-center-lock 0.3s ease-out 0.15s forwards;
+	opacity: 0;
+}
+
+.vf-center-dot {
+	display: none;
+}
+
+/* ── Red REC indicator ── */
+.vf-rec {
+	position: absolute;
+	top: 0.2rem;
+	right: 0.55rem;
+	display: flex;
+	align-items: center;
+	gap: 0.15rem;
+	opacity: 0;
+	animation: vf-hud-fade 0.2s ease-out 180ms forwards;
+}
+
+.vf-rec-dot {
+	display: block;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: var(--vf-red);
+	box-shadow:
+		0 0 6px var(--vf-red-glow),
+		0 0 12px var(--vf-red-dim);
+	animation: vf-rec-blink 1.2s ease-in-out infinite;
+}
+
+.vf-rec-label {
+	font-family: "SF Mono", "Menlo", "Consolas", monospace;
+	font-size: 0.6875rem; /* 11px — was 0.36rem (~5.8px), sub-legible */
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	color: var(--vf-red);
+	text-shadow: 0 0 4px var(--vf-red-glow);
+}
+
+/* ── Focus confirmation blink ── */
+.vf-focus-confirm {
+	position: absolute;
+	top: 0.22rem;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: rgb(0 200 80);
+	box-shadow: 0 0 6px rgb(0 200 80 / 0.6);
+	animation: vf-confirm-blink 0.12s ease-out 0.3s 3 forwards;
+	opacity: 0;
+}
+
+/* ── Keyframes ── */
+@keyframes vf-fade-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes vf-bracket-snap {
+	0% {
+		opacity: 0;
+		transform: scale(0.6);
+	}
+	70% {
+		opacity: 1;
+		transform: scale(1.05);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes vf-center-lock {
+	0% {
+		opacity: 0;
+		transform: scale(1.8);
+	}
+	50% {
+		opacity: 0.8;
+		transform: scale(0.92);
+	}
+	100% {
+		opacity: 0.6;
+		transform: scale(1);
+	}
+}
+
+@keyframes vf-dot-lock {
+	0% {
+		opacity: 0;
+		transform: scale(0);
+	}
+	60% {
+		opacity: 1;
+		transform: scale(1.6);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes vf-hud-fade {
+	from {
+		opacity: 0;
+		transform: translateY(2px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes vf-confirm-blink {
+	0% {
+		opacity: 0;
+	}
+	30% {
+		opacity: 1;
+	}
+	60% {
+		opacity: 0.3;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+
+@keyframes vf-red-pulse {
+	0%,
+	100% {
+		box-shadow:
+			inset 0 0 6px var(--vf-red-dim),
+			0 0 4px var(--vf-red-dim);
+		opacity: 0.7;
+	}
+	50% {
+		box-shadow:
+			inset 0 0 12px var(--vf-red-glow),
+			0 0 10px var(--vf-red-dim);
+		opacity: 1;
+	}
+}
+
+@keyframes vf-rec-blink {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.2;
+	}
+}
+
+.film-rating-favorite {
+	--film-accent: rgb(245 158 11);
+	--film-accent-dot: rgb(245 158 11);
+	--film-accent-glow: rgb(245 158 11 / 0.35);
+	--film-cover-filter: saturate(0.95) contrast(1.05);
+	--film-bg: rgb(45 35 20);
+	--film-reel-color: rgb(245 158 11 / 0.5);
+}
+
+.film-rating-great {
+	--film-accent: rgb(139 92 246);
+	--film-accent-dot: rgb(139 92 246);
+	--film-accent-glow: rgb(139 92 246 / 0.35);
+	--film-cover-filter: saturate(0.92) contrast(1.03);
+	--film-bg: rgb(28 25 65);
+	--film-reel-color: rgb(139 92 246 / 0.5);
+}
+
+.film-rating-solid {
+	--film-accent: rgb(14 165 233);
+	--film-accent-dot: rgb(14 165 233);
+	--film-accent-glow: rgb(14 165 233 / 0.35);
+	--film-cover-filter: saturate(0.9) contrast(1.02);
+	--film-bg: rgb(18 38 65);
+	--film-reel-color: rgb(14 165 233 / 0.5);
+}
+
+.film-advance {
+	width: 2.2rem;
+	height: 2.2rem;
+	border-radius: 50%;
+	border: 1.5px solid rgb(255 255 255 / 0.18);
+	background: rgb(20 20 25 / 0.75);
+	backdrop-filter: blur(4px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 150ms ease;
+	flex-shrink: 0;
+	z-index: 10;
+}
+
+.film-advance:hover {
+	background: rgb(35 35 42 / 0.85);
+	border-color: rgb(255 255 255 / 0.3);
+	transform: scale(1.08);
+}
+
+.film-advance:focus-visible {
+	outline: 2px solid var(--film-focus, rgb(245 158 11));
+	outline-offset: 2px;
+}
+
+.film-advance-arrow {
+	width: 0;
+	height: 0;
+	border-style: solid;
+}
+
+.film-advance--left .film-advance-arrow {
+	border-width: 0.32rem 0.5rem 0.32rem 0;
+	border-color: transparent rgb(255 255 255 / 0.65) transparent transparent;
+}
+
+.film-advance--right .film-advance-arrow {
+	border-width: 0.32rem 0 0.32rem 0.5rem;
+	border-color: transparent transparent transparent rgb(255 255 255 / 0.65);
+}
+
+.film-counter {
+	display: flex;
+	gap: 3px;
+	align-items: center;
+	justify-content: center;
+	padding: 0.2rem 0;
+}
+
+.film-counter-dot {
+	width: 3px;
+	height: 3px;
+	border-radius: 50%;
+	background: rgb(255 255 255 / 0.15);
+	transition:
+		background 200ms ease,
+		box-shadow 200ms ease;
+}
+
+.film-counter-dot--active {
+	background: rgb(245 158 11);
+	box-shadow: 0 0 5px rgb(245 158 11 / 0.5);
+}
+
+.dark .film-reel-rim {
+	background:
+		radial-gradient(
+			circle at 35% 30%,
+			rgb(255 255 255 / 0.18) 0%,
+			transparent 35%
+		),
+		repeating-conic-gradient(
+			from 0deg,
+			rgb(120 120 130 / 0.16) 0deg,
+			rgb(40 40 46 / 0.16) 0.4deg,
+			rgb(120 120 130 / 0.16) 0.8deg
+		),
+		radial-gradient(circle at 50% 50%, #2a2a30 0%, #16161a 55%, #0a0a0c 100%);
+}
+
+.dark .film-reel-spokes {
+	background: conic-gradient(
+		from 0deg,
+		rgb(150 150 160 / 0.75) 0deg 1.2deg,
+		transparent 1.2deg 45deg,
+		rgb(150 150 160 / 0.75) 45deg 46.2deg,
+		transparent 46.2deg 90deg,
+		rgb(150 150 160 / 0.75) 90deg 91.2deg,
+		transparent 91.2deg 135deg,
+		rgb(150 150 160 / 0.75) 135deg 136.2deg,
+		transparent 136.2deg 180deg,
+		rgb(150 150 160 / 0.75) 180deg 181.2deg,
+		transparent 181.2deg 225deg,
+		rgb(150 150 160 / 0.75) 225deg 226.2deg,
+		transparent 226.2deg 270deg,
+		rgb(150 150 160 / 0.75) 270deg 271.2deg,
+		transparent 271.2deg 315deg,
+		rgb(150 150 160 / 0.75) 315deg 316.2deg,
+		transparent 316.2deg 360deg
+	);
+}
+
+.dark .film-reel-hub {
+	background:
+		radial-gradient(
+			circle at 35% 30%,
+			rgb(255 255 255 / 0.35) 0%,
+			transparent 40%
+		),
+		radial-gradient(circle at 50% 50%, #7a7a82 0%, #4a4a52 60%, #2a2a30 100%);
+}
+
+/* ── Daylight machine: brushed-silver reel ───────────────
+	   The generic steel reel sits on light plastic panels during import
+	   progress; under daylight it lifts to silver. The phosphor projector
+	   variant above is untouched — the AI machine always glows green. */
+.light .film-reel-rim {
+	background:
+		radial-gradient(
+			circle at 35% 30%,
+			rgb(255 255 255 / 0.55) 0%,
+			transparent 35%
+		),
+		repeating-conic-gradient(
+			from 0deg,
+			rgb(120 120 130 / 0.22) 0deg,
+			rgb(80 80 90 / 0.22) 0.4deg,
+			rgb(120 120 130 / 0.22) 0.8deg
+		),
+		radial-gradient(circle at 50% 50%, #e8e8ee 0%, #b9b9c2 55%, #84848e 100%);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.75),
+		inset 0 -1px 1px rgb(0 0 0 / 0.28),
+		inset 0 0 0 1px rgb(0 0 0 / 0.16),
+		0 1px 3px var(--shadow-contact);
+}
+
+.light .film-reel-hub {
+	background:
+		radial-gradient(
+			circle at 35% 30%,
+			rgb(255 255 255 / 0.6) 0%,
+			transparent 40%
+		),
+		radial-gradient(circle at 50% 50%, #f2f2f6 0%, #b5b5bf 60%, #7d7d88 100%);
+}
+
+/* ── Projector processing language ────────────────────
+	   The AI machine as a film projector: a phosphor-tinted reel, a
+	   film-gate progress strip, and phosphor text. Monochrome on purpose —
+	   the one thing this app renders is hardware, and hardware glows
+	   green, never violet. */
+
+.film-reel--sm {
+	width: 2.4rem;
+	height: 2.4rem;
+}
+
+.film-reel--static {
+	cursor: default;
+}
+
+.film-reel--spin-fast .film-reel-ring {
+	animation: reel-rotate 12s linear infinite;
+}
+
+/* Loader pace: fast enough to read as "working" at a glance */
+.film-reel--spin-loader .film-reel-ring {
+	animation: reel-rotate 2.4s linear infinite;
+}
+
+/* Phosphor-green reel (default CRT theme's phosphor family) */
+.film-reel--phosphor .film-reel-rim {
+	background:
+		radial-gradient(
+			circle at 35% 30%,
+			rgb(255 255 255 / 0.22) 0%,
+			transparent 35%
+		),
+		repeating-conic-gradient(
+			from 0deg,
+			rgb(133 255 141 / 0.14) 0deg,
+			rgb(14 36 20 / 0.14) 0.4deg,
+			rgb(133 255 141 / 0.14) 0.8deg
+		),
+		radial-gradient(circle at 50% 50%, #1a5c33 0%, #0e3319 55%, #05170b 100%);
+}
+
+.film-reel--phosphor .film-reel-spokes {
+	background: conic-gradient(
+		from 0deg,
+		rgb(170 255 185 / 0.8) 0deg 1.2deg,
+		transparent 1.2deg 45deg,
+		rgb(170 255 185 / 0.8) 45deg 46.2deg,
+		transparent 46.2deg 90deg,
+		rgb(170 255 185 / 0.8) 90deg 91.2deg,
+		transparent 91.2deg 135deg,
+		rgb(170 255 185 / 0.8) 135deg 136.2deg,
+		transparent 136.2deg 180deg,
+		rgb(170 255 185 / 0.8) 180deg 181.2deg,
+		transparent 181.2deg 225deg,
+		rgb(170 255 185 / 0.8) 225deg 226.2deg,
+		transparent 226.2deg 270deg,
+		rgb(170 255 185 / 0.8) 270deg 271.2deg,
+		transparent 271.2deg 315deg,
+		rgb(170 255 185 / 0.8) 315deg 316.2deg,
+		transparent 316.2deg 360deg
+	);
+}
+
+.film-reel--phosphor .film-reel-hub {
+	background:
+		radial-gradient(
+			circle at 35% 30%,
+			rgb(255 255 255 / 0.35) 0%,
+			transparent 40%
+		),
+		radial-gradient(circle at 50% 50%, #7fe29a 0%, #2f7a45 60%, #12331e 100%);
+}
+
+/* Phosphor text: the terminal's chromatic-aberration glow, reusable on
+	   the projector surfaces. */
+.phosphor-text {
+	color: var(--term-fg, #caffbd);
+	text-shadow:
+		0.6px 0 0 rgba(255, 80, 80, 0.1),
+		-0.6px 0 0 rgba(80, 120, 255, 0.08),
+		0 0 3px var(--term-glow-strong, rgba(132, 255, 153, 0.42)),
+		0 0 12px var(--term-glow-soft, rgba(91, 255, 136, 0.14));
+}
+
+.phosphor-dim {
+	/* 0.9 alpha: was 0.72, which composites to ~3.2:1 on near-black and
+	   fails WCAG AA for the 11px mono consumers (filenames, counters). */
+	color: rgba(202, 255, 189, 0.9);
+	text-shadow: 0 0 3px rgba(132, 255, 153, 0.3);
+}
+
+/* Film-gate progress: a strip of frame cells that light one by one as
+	   work advances — the projector's equivalent of a progress bar. */
+.film-gate {
+	display: flex;
+	align-items: stretch;
+	gap: 2px;
+}
+
+.film-gate-cell {
+	flex: 1 1 0;
+	min-width: 0;
+	height: 100%;
+	border-radius: 1px;
+	background: rgba(0, 0, 0, 0.35);
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+	transition:
+		background 150ms ease,
+		box-shadow 150ms ease,
+		border-color 150ms ease;
+}
+
+.film-gate-cell--on {
+	background: linear-gradient(
+		to bottom,
+		rgba(190, 255, 204, 0.95),
+		rgba(102, 255, 140, 0.5)
+	);
+	border-color: rgba(144, 255, 169, 0.35);
+	box-shadow:
+		0 0 5px rgba(133, 255, 141, 0.4),
+		inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.film-gate-cell--dim {
+	background: rgba(133, 255, 141, 0.13);
+	border-color: rgba(144, 255, 169, 0.18);
+}
+
+/* Perforated edge band (film sprocket holes) for the projector body */
+.sprocket-band {
+	height: 0.22rem;
+	background-image: repeating-linear-gradient(
+		90deg,
+		rgba(0, 0, 0, 0.55) 0 3px,
+		transparent 3px 7px,
+		rgba(255, 255, 255, 0.05) 7px 8px
+	);
+	opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.film-reel--spinning .film-reel-ring,
+	.film-reel--spin-fast .film-reel-ring,
+	.film-reel--spin-loader .film-reel-ring,
+	.film-frame,
+	.film-frame:hover {
+		animation: none !important;
+		transition: none !important;
+		transform: none !important;
+	}
+}

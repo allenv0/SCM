@@ -1,0 +1,10 @@
+dist/
+dist-app/
+node_modules/
+bun.lock
+
+# Docs & generated benchmark data are hand/machine-written prose —
+# reflowing them adds churn, not value.
+*.md
+MDs/
+Memo.md

@@ -1,0 +1,15 @@
+/* Bare `mark` highlight only — the rest of the old prose/essay/tweet
+   overrides were dead code (no `.prose` usage in this app; react-tweet is
+   a site dependency). Keep this rule: MemoryCard highlights use <mark>. */
+
+mark {
+	background-color: #fef08a; /* yellow-200 */
+	color: #000000;
+	padding: 0.125rem 0.25rem;
+	border-radius: 0.25rem;
+}
+
+.dark mark {
+	background-color: #ca8a04; /* yellow-600 */
+	color: #ffffff;
+}

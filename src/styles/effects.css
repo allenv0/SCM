@@ -1,0 +1,395 @@
+/* Generic animation + interaction utilities (fade-in, spring, ripple, shine, mac-terminal-cue, typewriter, scrollbar-hide). */
+
+@keyframes fade-in {
+	0% {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animate-fade-in {
+	animation: fade-in 0.5s ease-out forwards;
+}
+
+@keyframes scale-in {
+	0% {
+		opacity: 0;
+		transform: scale(0.9);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+.animate-scale-in {
+	animation: scale-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Neon glow breathing animation for ASCII art logo during boot */
+@keyframes neon-glow {
+	0%,
+	100% {
+		filter: saturate(0.5) brightness(0.82);
+	}
+	50% {
+		filter: saturate(1.3) brightness(1.18);
+	}
+}
+
+.animate-neon-glow {
+	animation: neon-glow 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-neon-glow {
+		filter: saturate(0.7) brightness(0.95);
+		animation: none;
+	}
+}
+
+/* Entrance utilities: fade-in / scale-in / slide-up / slide-in-right are
+   the four most-used pop-in animations (Settings, lightbox, context menu,
+   ModelPicker, AI insights, import toast). Freeze them under reduced
+   motion — final state only, no transform travel. */
+@media (prefers-reduced-motion: reduce) {
+	.animate-fade-in {
+		animation: none;
+		opacity: 1;
+		transform: none;
+	}
+	.animate-scale-in {
+		animation: none;
+		opacity: 1;
+		transform: none;
+	}
+	.animate-slide-up {
+		animation: none;
+		opacity: 1;
+		transform: none;
+	}
+	.animate-slide-in-right {
+		animation: none;
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes slide-up {
+	0% {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animate-slide-up {
+	animation: slide-up 0.6s ease-out forwards;
+}
+
+/* Bottom sheet: rises from fully off-screen below the viewport edge */
+@keyframes sheet-up {
+	0% {
+		transform: translateY(100%);
+	}
+	100% {
+		transform: translateY(0);
+	}
+}
+
+.animate-sheet-up {
+	animation: sheet-up 0.45s cubic-bezier(0.32, 0.72, 0.32, 1) forwards;
+}
+
+@keyframes slide-in-right {
+	0% {
+		transform: translateX(100%);
+		opacity: 0;
+	}
+	100% {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+.animate-slide-in-right {
+	animation: slide-in-right 0.3s cubic-bezier(0.32, 0.72, 0.32, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-sheet-up {
+		transform: none;
+		animation: none;
+	}
+}
+
+/* Shared utilities */
+.writing-mode-vertical {
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
+}
+
+.preserve-3d {
+	transform-style: preserve-3d;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+	.preserve-3d,
+	.writing-mode-vertical {
+		transform: none !important;
+	}
+}
+
+/* Hide scrollbar for clean UI */
+.scrollbar-hide {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+	display: none;
+}
+
+/* Spring physics animation utilities */
+.animate-spring {
+	transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-spring-fast {
+	transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+	transition-duration: 0.2s;
+}
+
+.animate-spring-slow {
+	transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+	transition-duration: 0.5s;
+}
+
+/* Ripple effect on click */
+.ripple {
+	position: relative;
+	overflow: hidden;
+}
+
+.ripple::after {
+	content: "";
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	top: 0;
+	left: 0;
+	pointer-events: none;
+	background-image: radial-gradient(
+		circle,
+		rgba(255, 255, 255, 0.3) 10%,
+		transparent 10.01%
+	);
+	background-repeat: no-repeat;
+	background-position: 50%;
+	transform: scale(10, 10);
+	opacity: 0;
+	transition:
+		transform 0.5s,
+		opacity 0.5s;
+}
+
+.ripple:active::after {
+	transform: scale(0, 0);
+	opacity: 0.3;
+	transition: 0s;
+}
+
+/* Jelly bounce animation */
+@keyframes jelly {
+	0%,
+	100% {
+		transform: scale(1, 1);
+	}
+	25% {
+		transform: scale(0.95, 1.05);
+	}
+	50% {
+		transform: scale(1.05, 0.95);
+	}
+	75% {
+		transform: scale(0.98, 1.02);
+	}
+}
+
+.animate-jelly {
+	animation: jelly 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Homepage Mac terminal affordance */
+.mac-terminal-cue {
+	--cue-cyan: 56, 189, 248;
+	--cue-violet: 139, 92, 246; /* canonical brand purple */
+	--cursor-color-start: #ffffff;
+	--cursor-color-mid: #a78bfa; /* Violet accent-primary */
+	--cursor-color-end: #06b6d4; /* Cyan accent-secondary */
+	--cursor-shadow-color: #06b6d4;
+	filter: drop-shadow(0 18px 34px rgba(15, 23, 42, 0.18));
+}
+
+.mac-terminal-cue__cursor-wrapper {
+	position: absolute;
+	right: 11%;
+	bottom: 11%;
+	width: 40px;
+	height: 40px;
+	pointer-events: none;
+	z-index: 30;
+}
+
+.mac-terminal-cue__cursor {
+	width: 40px;
+	height: 40px;
+	transform-origin: top left;
+	animation: mac-cue-cursor-premium 2.4s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+	will-change: transform;
+}
+
+.mac-terminal-cue__click-ripple {
+	position: absolute;
+	left: 3.5px;
+	top: 3.5px;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	border: 2.5px solid rgba(var(--cue-cyan), 0.95);
+	box-shadow:
+		0 0 14px rgba(var(--cue-cyan), 0.85),
+		0 0 28px rgba(var(--cue-violet), 0.65);
+	background: radial-gradient(
+		circle,
+		rgba(var(--cue-cyan), 0.35) 0%,
+		transparent 75%
+	);
+	pointer-events: none;
+	transform: translate(-50%, -50%) scale(0);
+	animation: mac-cue-ripple 2.4s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+	will-change: transform, opacity;
+}
+
+@keyframes mac-cue-cursor-premium {
+	0%,
+	100% {
+		transform: translate(0, 0) scale(1) rotate(-5deg);
+	}
+	35% {
+		/* Floating translation increased from -4px to -6px, scale from 1.06 to 1.10 */
+		transform: translate(-6px, -6px) scale(1.1) rotate(-5deg);
+	}
+	42% {
+		/* Click down state: compressed more significantly, scale decreased from 0.85 to 0.76 */
+		transform: translate(-1px, -1px) scale(0.76) rotate(-9deg);
+	}
+	48% {
+		/* Spring release state: dynamic overshoot/bounce increased from -5px to -8px, scale from 1.12 to 1.18 */
+		transform: translate(-8px, -8px) scale(1.18) rotate(-2deg);
+	}
+	60% {
+		/* Settling state: translation increased from -2px to -3px */
+		transform: translate(-3px, -3px) scale(1.03) rotate(-5deg);
+	}
+}
+
+@keyframes mac-cue-ripple {
+	0%,
+	41% {
+		opacity: 0;
+		transform: translate(-50%, -50%) scale(0);
+	}
+	42% {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(0.1);
+	}
+	68% {
+		opacity: 0;
+		/* Ripple scale expanded from 3.5 to 5.5 for a 50%+ bolder visual punch */
+		transform: translate(-50%, -50%) scale(5.5);
+	}
+	100% {
+		opacity: 0;
+		transform: translate(-50%, -50%) scale(5.5);
+	}
+}
+
+.light .mac-terminal-cue {
+	--cursor-color-start: #ffffff;
+	--cursor-color-mid: var(--brand-purple); /* brand violet */
+	--cursor-color-end: #6d28d9; /* deep violet ink tier */
+	--cursor-shadow-color: var(--brand-cyan);
+	filter: drop-shadow(0 16px 30px rgba(71, 85, 105, 0.2));
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mac-terminal-cue__cursor {
+		animation: none;
+		transform: translate(-2px, -2px) rotate(-5deg);
+	}
+	.mac-terminal-cue__click-ripple {
+		animation: none;
+		display: none;
+	}
+}
+
+/* Typewriter cursor */
+@keyframes typewriter-cursor {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
+}
+
+.typewriter-cursor::after {
+	content: "|";
+	animation: typewriter-cursor 1s step-end infinite;
+	margin-left: 2px;
+}
+
+/* AI status: the spinning arc + pinging beacons are purely decorative;
+	   freeze them for reduced-motion users. */
+@media (prefers-reduced-motion: reduce) {
+	.animate-spin,
+	.animate-ping,
+	.animate-pulse {
+		animation: none;
+	}
+}
+
+/* Shine effect on hover */
+.shine {
+	position: relative;
+	overflow: hidden;
+}
+
+.shine::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		rgba(255, 255, 255, 0.2),
+		transparent
+	);
+	transition: left 0.5s ease;
+}
+
+.shine:hover::before {
+	left: 100%;
+}
