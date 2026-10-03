@@ -61,3 +61,4 @@ assets/original-app-icons/
 Asset/*
 !Asset/scm-vhs.png
 !Asset/0.gif
+!Asset/tabs.png

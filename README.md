@@ -36,6 +36,10 @@
 
 ## Five ways to search
 
+<div align="center">
+    <img src="Asset/tabs.png" alt="Search modes: Files, Scenes, Dialogue, OCR, LLMs" width="700" />
+</div>
+
 | Mode                | Finds                                                                                     |
 | ------------------- | ----------------------------------------------------------------------------------------- |
 | **Files**           | Whole photos/videos by meaning — vision rank with filename and phrase boosts              |
