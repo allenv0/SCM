@@ -7,16 +7,17 @@
   <a href="https://scm.allenlee.site/" style="color: inherit; text-decoration: none;">SCM</a>
 </h1>
 
-<div align="center">
-    <img src="Asset/0.gif" alt="SCM demo" width="700" />
-</div>
-
 ---
 
 # SCM — Screen Memories
 
   Local-first media intelligence for your photos and videos. No accounts, no
   cloud, no uploads of your library — inference runs on your Mac.
+
+<div align="center">
+    <img src="Asset/0.gif" alt="SCM demo — library grid" width="700" />
+    <img src="Asset/1.gif" alt="SCM demo — scene search" width="700" />
+</div>
 
 **What makes it different**
 
