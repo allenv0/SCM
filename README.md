@@ -56,6 +56,12 @@
 - First use of a model downloads its weights (~435MB for the default CLIP);
   after that, fully offline.
 
+## Download
+
+[Download SCM-0.2.5 for Apple Silicon](https://github.com/allenv0/scm-dmg/releases/download/0.2.5/SCM-0.2.5-arm64.dmg)
+
+> ⚠️ Unsigned / un-notarized build: macOS Gatekeeper will block first launch — right-click the app → Open (or use Sentinel as the release notes suggest).
+
 ## Development
 
 ```bash
