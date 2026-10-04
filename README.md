@@ -11,8 +11,8 @@
 
 # SCM — Screen Memories
 
-  Local-first media intelligence for your photos and videos. No accounts, no
-  cloud, no uploads of your library — inference runs on your Mac.
+ Deep AI search for every photo and every frame of video in any folder on macOS.
+  Local-first — no accounts, no cloud, no uploads. Inference runs on your Mac.
 
 <div align="center">
     <img src="Asset/0.gif" alt="SCM demo — library grid" width="700" />
