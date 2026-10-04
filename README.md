@@ -4,10 +4,9 @@
   </a>
 </p>
 <h1 align="center">
-  <a href="https://scm.allenlee.site/" style="color: inherit; text-decoration: none;">SCM</a>
+  <a href="https://scm.allenlee.site/" style="color: inherit; text-decoration: none;"></a>
 </h1>
 
----
 
 # SCM — Screen Memories
 
