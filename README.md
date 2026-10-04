@@ -63,9 +63,32 @@
 
 ## Download
 
-[Download SCM-0.2.5 for Apple Silicon](https://github.com/allenv0/scm-dmg/releases/download/0.2.5/SCM-0.2.5-arm64.dmg)
+The easiest install is via Homebrew (Apple Silicon, macOS 12+). The tap's
+cask clears the macOS quarantine flag automatically on every install and
+upgrade, so the app launches with no manual Gatekeeper steps:
 
-> ⚠️ Unsigned / un-notarized build: macOS Gatekeeper will block first launch — right-click the app → Open (or use Sentinel as the release notes suggest).
+```bash
+brew tap allenv0/scm
+brew trust allenv0/scm
+brew install --cask allenv0/scm/scm
+```
+
+Upgrades keep the same behavior:
+
+```bash
+brew upgrade --cask allenv0/scm/scm
+```
+
+Prefer least privilege? Trust just the cask instead of the whole tap:
+
+```bash
+brew tap allenv0/scm
+brew trust --cask allenv0/scm/scm
+brew install --cask scm
+```
+
+The tap lives at
+[allenv0/homebrew-scm](https://github.com/allenv0/homebrew-scm).
 
 ## Development
 
