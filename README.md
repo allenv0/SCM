@@ -78,14 +78,6 @@ Upgrades keep the same behavior:
 brew upgrade --cask allenv0/scm/scm
 ```
 
-Prefer least privilege? Trust just the cask instead of the whole tap:
-
-```bash
-brew tap allenv0/scm
-brew trust --cask allenv0/scm/scm
-brew install --cask scm
-```
-
 The tap lives at
 [allenv0/homebrew-scm](https://github.com/allenv0/homebrew-scm).
 
