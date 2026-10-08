@@ -77,7 +77,10 @@ function spawnFfmpeg(ffmpeg, args, opts) {
 	const child = spawn(ffmpeg, args, opts);
 	return trackFfmpegChild(
 		child,
-		`ffmpeg ${Array.isArray(args) ? args.slice(0, 4).join(" ") : ""}`.slice(0, 120),
+		`ffmpeg ${Array.isArray(args) ? args.slice(0, 4).join(" ") : ""}`.slice(
+			0,
+			120,
+		),
 	);
 }
 
@@ -211,7 +214,9 @@ function resolveFfmpeg() {
 
 function runFfmpeg(ffmpeg, args, timeoutMs = 120000) {
 	return new Promise((resolve, reject) => {
-		const child = spawnFfmpeg(ffmpeg, args, { stdio: ["ignore", "pipe", "pipe"] });
+		const child = spawnFfmpeg(ffmpeg, args, {
+			stdio: ["ignore", "pipe", "pipe"],
+		});
 		let stdout = "";
 		let stderr = "";
 		child.stdout.on("data", (d) => (stdout += d));
@@ -240,7 +245,9 @@ function runFfmpeg(ffmpeg, args, timeoutMs = 120000) {
 // concat would corrupt rawvideo), stderr stays a string for diagnostics.
 function runFfmpegBuffer(ffmpeg, args, timeoutMs = 120000) {
 	return new Promise((resolve, reject) => {
-		const child = spawnFfmpeg(ffmpeg, args, { stdio: ["ignore", "pipe", "pipe"] });
+		const child = spawnFfmpeg(ffmpeg, args, {
+			stdio: ["ignore", "pipe", "pipe"],
+		});
 		const chunks = [];
 		let stderr = "";
 		child.stdout.on("data", (d) => chunks.push(d));
@@ -277,7 +284,9 @@ function runFfmpegBuffer(ffmpeg, args, timeoutMs = 120000) {
 function parseRawFrameSize(stderr, width) {
 	const outIdx = stderr.lastIndexOf("Output #");
 	const section = outIdx >= 0 ? stderr.slice(outIdx) : stderr;
-	const m = section.match(/Video:\s*rawvideo[\s\S]*?,\s*(\d{1,5})x(\d{1,5})(?:\s*\[|,|\s|$)/);
+	const m = section.match(
+		/Video:\s*rawvideo[\s\S]*?,\s*(\d{1,5})x(\d{1,5})(?:\s*\[|,|\s|$)/,
+	);
 	if (m) return { width: +m[1], height: +m[2] };
 	if (width != null && width <= 224) return { width: 224, height: 224 };
 	return null;
@@ -590,9 +599,17 @@ function envInt(name, fallback) {
 function envFlag(name, fallback) {
 	const raw = process.env[name];
 	if (raw == null || raw === "") return fallback;
-	if (raw === "1" || raw.toLowerCase() === "true" || raw.toLowerCase() === "yes")
+	if (
+		raw === "1" ||
+		raw.toLowerCase() === "true" ||
+		raw.toLowerCase() === "yes"
+	)
 		return true;
-	if (raw === "0" || raw.toLowerCase() === "false" || raw.toLowerCase() === "no")
+	if (
+		raw === "0" ||
+		raw.toLowerCase() === "false" ||
+		raw.toLowerCase() === "no"
+	)
 		return false;
 	return fallback;
 }
@@ -612,29 +629,29 @@ function resolveDetectOptions(opts = {}) {
 	);
 	const fps = Math.max(
 		0,
-		Math.min(120, Number(opts.fps ?? envInt("SCM_DETECT_FPS", DEFAULT_DETECT_FPS))),
+		Math.min(
+			120,
+			Number(opts.fps ?? envInt("SCM_DETECT_FPS", DEFAULT_DETECT_FPS)),
+		),
 	);
 	const threshold =
 		Number.isFinite(opts.threshold) && opts.threshold > 0 && opts.threshold <= 1
 			? Number(opts.threshold)
 			: Number.isFinite(Number(process.env.SCM_DETECT_THRESHOLD)) &&
-					Number(process.env.SCM_DETECT_THRESHOLD) > 0 &&
-					Number(process.env.SCM_DETECT_THRESHOLD) <= 1
+				  Number(process.env.SCM_DETECT_THRESHOLD) > 0 &&
+				  Number(process.env.SCM_DETECT_THRESHOLD) <= 1
 				? Number(process.env.SCM_DETECT_THRESHOLD)
 				: SCENE_THRESHOLD;
 	const keyframe = Boolean(
 		opts.keyframe ?? envFlag("SCM_DETECT_KEYFRAME", false),
 	);
-	const useCache = Boolean(
-		opts.cache ?? envFlag("SCM_DETECT_CACHE", true),
-	);
+	const useCache = Boolean(opts.cache ?? envFlag("SCM_DETECT_CACHE", true));
 	const cacheDir = opts.cacheDir || process.env.SCM_DETECT_CACHE_DIR || null;
 	// Keep hw frames on the GPU and hwdownload inside the filter (Phase 1.1
 	// risk check). Default false: plain -hwaccel videotoolbox downloads after
 	// decode and is the safer first try for select=scene.
 	const hwOutputFormat = Boolean(
-		opts.hwaccelOutputFormat ??
-			envFlag("SCM_DETECT_HW_OUTPUT_FORMAT", false),
+		opts.hwaccelOutputFormat ?? envFlag("SCM_DETECT_HW_OUTPUT_FORMAT", false),
 	);
 	return {
 		hwaccel,
@@ -687,7 +704,12 @@ function buildDetectArgs(filePath, o, { keyframeOnly = false } = {}) {
 		args.push("-skip_frame", "nokey");
 	}
 	const useHw = o.hwaccel === "videotoolbox" || o.hwaccel === "auto";
-	if (useHw && o.hwaccel !== "software" && o.hwaccel !== "off" && o.hwaccel !== "none") {
+	if (
+		useHw &&
+		o.hwaccel !== "software" &&
+		o.hwaccel !== "off" &&
+		o.hwaccel !== "none"
+	) {
 		args.push("-hwaccel", "videotoolbox");
 		if (o.hwaccelOutputFormat) {
 			args.push("-hwaccel_output_format", "videotoolbox");
@@ -696,7 +718,9 @@ function buildDetectArgs(filePath, o, { keyframeOnly = false } = {}) {
 	args.push("-i", filePath);
 	args.push(
 		"-filter_complex",
-		buildDetectFilter(o, { forHwDownload: Boolean(o.hwaccelOutputFormat && useHw) }),
+		buildDetectFilter(o, {
+			forHwDownload: Boolean(o.hwaccelOutputFormat && useHw),
+		}),
 		"-map",
 		"[sa]",
 		"-map",
@@ -715,7 +739,9 @@ function parseDetectStderr(stderr) {
 		parseFloat(m[1]),
 	);
 	let lastTime = null;
-	for (const m of String(stderr).matchAll(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/g)) {
+	for (const m of String(stderr).matchAll(
+		/time=(\d+):(\d+):(\d+(?:\.\d+)?)/g,
+	)) {
 		lastTime = Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]);
 	}
 	return {
@@ -1069,7 +1095,13 @@ async function detectScenes(
 			});
 			child.on("close", (code) => {
 				stopWatchdogs();
-				if (onProgress && !timedOut && !failedPass && duration > 0 && lastPct < 1) {
+				if (
+					onProgress &&
+					!timedOut &&
+					!failedPass &&
+					duration > 0 &&
+					lastPct < 1
+				) {
 					onProgress({ pct: 1 });
 				}
 				const parsed = parseDetectStderr(stderr);
@@ -1126,14 +1158,25 @@ async function detectScenes(
 	}
 	if (!chosen) {
 		// Absolute last resort: historic empty result.
-		return { boundaries: [], duration: null, engine: "failed", wallMs: Date.now() - started, cached: false };
+		return {
+			boundaries: [],
+			duration: null,
+			engine: "failed",
+			wallMs: Date.now() - started,
+			cached: false,
+		};
 	}
 
 	let boundaries = chosen.boundaries;
 	// Phase 1.3 keyframe coarse + local refine.
 	if (o.keyframe) {
 		const coarse = await runOnce(
-			{ ...o, hwaccel: engineLabel.startsWith("videotoolbox") ? "videotoolbox" : "software" },
+			{
+				...o,
+				hwaccel: engineLabel.startsWith("videotoolbox")
+					? "videotoolbox"
+					: "software",
+			},
 			{ keyframeOnly: true },
 		);
 		// Prefer coarse I-frame hits when the full pass is much larger (the
@@ -1165,7 +1208,11 @@ async function detectScenes(
 			const ident = detectCache.fileIdentity(filePath);
 			detectCache.setCachedDetect(
 				o.cacheDir,
-				{ filePath: path.resolve(filePath), ...ident, configKey: detectConfigKey(o) },
+				{
+					filePath: path.resolve(filePath),
+					...ident,
+					configKey: detectConfigKey(o),
+				},
 				result,
 			);
 		} catch {
@@ -1185,10 +1232,12 @@ async function refineBoundaries(ffmpeg, filePath, o, coarseHits, windowS) {
 		const dur = windowS * 2 + 0.25;
 		const res = await new Promise((resolve) => {
 			const args = [];
-			const useHw = o.hwaccel !== "software" && o.hwaccel !== "off" && o.hwaccel !== "none";
+			const useHw =
+				o.hwaccel !== "software" && o.hwaccel !== "off" && o.hwaccel !== "none";
 			if (useHw) {
 				args.push("-hwaccel", "videotoolbox");
-				if (o.hwaccelOutputFormat) args.push("-hwaccel_output_format", "videotoolbox");
+				if (o.hwaccelOutputFormat)
+					args.push("-hwaccel_output_format", "videotoolbox");
 			}
 			args.push(
 				"-ss",
@@ -1209,7 +1258,9 @@ async function refineBoundaries(ffmpeg, filePath, o, coarseHits, windowS) {
 				"null",
 				"-",
 			);
-			const child = spawnFfmpeg(ffmpeg, args, { stdio: ["ignore", "pipe", "pipe"] });
+			const child = spawnFfmpeg(ffmpeg, args, {
+				stdio: ["ignore", "pipe", "pipe"],
+			});
 			let stderr = "";
 			let settled = false;
 			const done = (v) => {

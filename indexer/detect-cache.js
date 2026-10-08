@@ -45,7 +45,11 @@ function readCache(cachePath) {
 	}
 	try {
 		const raw = JSON.parse(fs.readFileSync(cachePath, "utf8"));
-		if (!raw || raw.schema !== CACHE_SCHEMA || typeof raw.entries !== "object") {
+		if (
+			!raw ||
+			raw.schema !== CACHE_SCHEMA ||
+			typeof raw.entries !== "object"
+		) {
 			return { schema: CACHE_SCHEMA, entries: {} };
 		}
 		return raw;
@@ -97,7 +101,11 @@ function getCachedDetect(cacheDir, { filePath, size, mtimeMs, configKey }) {
 	};
 }
 
-function setCachedDetect(cacheDir, { filePath, size, mtimeMs, configKey }, result) {
+function setCachedDetect(
+	cacheDir,
+	{ filePath, size, mtimeMs, configKey },
+	result,
+) {
 	const cachePath = detectCachePath(cacheDir);
 	if (!cachePath) return false;
 	const key = detectCacheKey({ filePath, size, mtimeMs, configKey });

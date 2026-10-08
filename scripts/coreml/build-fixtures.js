@@ -12,6 +12,9 @@
 
 const fs = require("fs");
 const path = require("path");
+// Explicit require: global `crypto` is absent on older Electron/node (the
+// same guard main.js applies — the built-in shadows nothing here).
+// eslint-disable-next-line no-redeclare
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
 
@@ -19,11 +22,13 @@ const ROOT = path.resolve(__dirname);
 const REPO = path.resolve(ROOT, "..", "..");
 const IMG = path.join(ROOT, "fixtures", "images");
 const MANIFEST = path.join(ROOT, "fixtures", "manifest.json");
-const PY = process.env.MIMO_PYTHON || "python3";
 const SCORE_TIE_BAND = 0.002; // predeclared; never post-hoc (plan §5.3)
 
 function sha256(file) {
-	return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+	return crypto
+		.createHash("sha256")
+		.update(fs.readFileSync(file))
+		.digest("hex");
 }
 
 function hslToRgb(h, s, l) {
@@ -121,14 +126,12 @@ async function collectPhotos() {
 			.filter((f) => /\.(png|jpe?g)$/i.test(f))
 			.sort();
 		for (const f of files.slice(0, 16)) {
-			const id = `photo-ui-${path.basename(f).replace(/\.[^.]+$/, "").slice(0, 40)}`;
+			const id = `photo-ui-${path
+				.basename(f)
+				.replace(/\.[^.]+$/, "")
+				.slice(0, 40)}`;
 			items.push(
-				copyInto(
-					path.join(shots, f),
-					id,
-					"photo",
-					"screenshot user interface",
-				),
+				copyInto(path.join(shots, f), id, "photo", "screenshot user interface"),
 			);
 		}
 	}
@@ -140,8 +143,13 @@ async function collectPhotos() {
 			.filter((f) => /\.(png|jpe?g)$/i.test(f))
 			.sort();
 		for (const f of files.slice(0, 6)) {
-			const id = `photo-icon-${path.basename(f).replace(/\.[^.]+$/, "").slice(0, 30)}`;
-			items.push(copyInto(path.join(icons, f), id, "photo", "app icon illustration"));
+			const id = `photo-icon-${path
+				.basename(f)
+				.replace(/\.[^.]+$/, "")
+				.slice(0, 30)}`;
+			items.push(
+				copyInto(path.join(icons, f), id, "photo", "app icon illustration"),
+			);
 		}
 	}
 	// 3. Fine-detail synthetic but photorealistic-ish JPEGs if present.
@@ -153,7 +161,9 @@ async function collectPhotos() {
 			.sort();
 		for (const f of files.slice(0, 10)) {
 			const id = `photo-detail-${path.basename(f).replace(/\.[^.]+$/, "")}`;
-			items.push(copyInto(path.join(fine, f), id, "photo", "fine detail shape text"));
+			items.push(
+				copyInto(path.join(fine, f), id, "photo", "fine detail shape text"),
+			);
 		}
 	}
 	return items;
@@ -191,9 +201,7 @@ async function collectVideoFrames() {
 		if (!fs.existsSync(src)) continue;
 		const film = f.startsWith("pearl") ? "pearl" : "topgun";
 		const id = `video-${f.replace(/\.jpg$/, "")}`;
-		items.push(
-			copyInto(src, id, "video-frame", `${film} film frame`),
-		);
+		items.push(copyInto(src, id, "video-frame", `${film} film frame`));
 	}
 	return items;
 }
@@ -204,8 +212,7 @@ async function downloadDiverse(targetCount) {
 	const items = [];
 	const existing = fs
 		.readdirSync(IMG)
-		.filter((f) => f.startsWith("photo-"))
-		.length;
+		.filter((f) => f.startsWith("photo-")).length;
 	const need = Math.max(0, targetCount - existing);
 	if (need <= 0) return items;
 	const seeds = [];
@@ -215,22 +222,30 @@ async function downloadDiverse(targetCount) {
 		const id = `photo-web-${seed}`;
 		const dest = path.join(IMG, `${id}.jpg`);
 		if (fs.existsSync(dest)) {
-			items.push({ id, file: `images/${id}.jpg`, kind: "photo", label: "web photograph" });
+			items.push({
+				id,
+				file: `images/${id}.jpg`,
+				kind: "photo",
+				label: "web photograph",
+			});
 			continue;
 		}
 		try {
-			execFileSync(
-				"curl",
-				["-fsSL", "--max-time", "30", "-o", dest, url],
-				{ stdio: ["ignore", "ignore", "pipe"] },
-			);
+			execFileSync("curl", ["-fsSL", "--max-time", "30", "-o", dest, url], {
+				stdio: ["ignore", "ignore", "pipe"],
+			});
 			// Verify it decodes as an image ≥64px.
 			const st = fs.statSync(dest);
 			if (st.size < 1000) {
 				fs.rmSync(dest, { force: true });
 				continue;
 			}
-			items.push({ id, file: `images/${id}.jpg`, kind: "photo", label: "web photograph" });
+			items.push({
+				id,
+				file: `images/${id}.jpg`,
+				kind: "photo",
+				label: "web photograph",
+			});
 		} catch {
 			fs.rmSync(dest, { force: true });
 		}
@@ -238,14 +253,14 @@ async function downloadDiverse(targetCount) {
 	return items;
 }
 
-function queriesFor(solids, photos, frames) {
+function queriesFor(photos, frames) {
 	// ≥20 named queries with expected positives. Tie band is predeclared.
-	const solidIds = solids.map((s) => s.id);
-	const frameIds = frames.map((f) => f.id);
 	const pearl = frames.filter((f) => f.id.includes("pearl")).map((f) => f.id);
 	const topgun = frames.filter((f) => f.id.includes("topgun")).map((f) => f.id);
 	const ui = photos.filter((p) => p.id.includes("ui-")).map((p) => p.id);
-	const detail = photos.filter((p) => p.id.includes("detail-")).map((p) => p.id);
+	const detail = photos
+		.filter((p) => p.id.includes("detail-"))
+		.map((p) => p.id);
 
 	const q = [
 		{ query: "a solid red rectangle", expectedPositives: ["solid-red"] },
@@ -254,22 +269,64 @@ function queriesFor(solids, photos, frames) {
 		{ query: "a solid yellow block", expectedPositives: ["solid-yellow"] },
 		{ query: "a solid magenta fill", expectedPositives: ["solid-magenta"] },
 		{ query: "a solid cyan surface", expectedPositives: ["solid-cyan"] },
-		{ query: "a dark brown earth tone", expectedPositives: ["solid-brown", "solid-olive"] },
+		{
+			query: "a dark brown earth tone",
+			expectedPositives: ["solid-brown", "solid-olive"],
+		},
 		{ query: "a purple violet field", expectedPositives: ["solid-violet"] },
-		{ query: "fighter jet flying over the ocean", expectedPositives: topgun.slice(0, 4) },
-		{ query: "aircraft carrier flight deck", expectedPositives: topgun.slice(0, 3) },
-		{ query: "pilot wearing flight helmet and visor", expectedPositives: topgun.slice(1, 4) },
-		{ query: "military officer in dress uniform", expectedPositives: topgun.slice(0, 3) },
+		{
+			query: "fighter jet flying over the ocean",
+			expectedPositives: topgun.slice(0, 4),
+		},
+		{
+			query: "aircraft carrier flight deck",
+			expectedPositives: topgun.slice(0, 3),
+		},
+		{
+			query: "pilot wearing flight helmet and visor",
+			expectedPositives: topgun.slice(1, 4),
+		},
+		{
+			query: "military officer in dress uniform",
+			expectedPositives: topgun.slice(0, 3),
+		},
 		{ query: "red barn on a farm", expectedPositives: pearl.slice(0, 4) },
 		{ query: "cornfield at sunset", expectedPositives: pearl.slice(0, 4) },
-		{ query: "scarecrow standing in a field", expectedPositives: pearl.slice(1, 5) },
-		{ query: "woman in an old fashioned dress", expectedPositives: pearl.slice(0, 4) },
-		{ query: "a screenshot of a software user interface", expectedPositives: ui.slice(0, 5) },
-		{ query: "settings menu on a dark screen", expectedPositives: ui.slice(0, 5) },
-		{ query: "a colorful app icon", expectedPositives: photos.filter((p) => p.id.includes("icon-")).map((p) => p.id).slice(0, 3) },
-		{ query: "small text and geometric shapes", expectedPositives: detail.slice(0, 5) },
-		{ query: "a blue square shape", expectedPositives: detail.filter((d) => d.includes("blue")).slice(0, 2) },
-		{ query: "the word beacon written on a page", expectedPositives: detail.filter((d) => d.includes("beacon")).slice(0, 3) },
+		{
+			query: "scarecrow standing in a field",
+			expectedPositives: pearl.slice(1, 5),
+		},
+		{
+			query: "woman in an old fashioned dress",
+			expectedPositives: pearl.slice(0, 4),
+		},
+		{
+			query: "a screenshot of a software user interface",
+			expectedPositives: ui.slice(0, 5),
+		},
+		{
+			query: "settings menu on a dark screen",
+			expectedPositives: ui.slice(0, 5),
+		},
+		{
+			query: "a colorful app icon",
+			expectedPositives: photos
+				.filter((p) => p.id.includes("icon-"))
+				.map((p) => p.id)
+				.slice(0, 3),
+		},
+		{
+			query: "small text and geometric shapes",
+			expectedPositives: detail.slice(0, 5),
+		},
+		{
+			query: "a blue square shape",
+			expectedPositives: detail.filter((d) => d.includes("blue")).slice(0, 2),
+		},
+		{
+			query: "the word beacon written on a page",
+			expectedPositives: detail.filter((d) => d.includes("beacon")).slice(0, 3),
+		},
 	];
 	// Drop queries whose expectedPositives ended up empty (missing corpus).
 	return q
@@ -316,7 +373,7 @@ async function main() {
 		return { ...item, sha256: sha256(abs), bytes };
 	});
 
-	const queries = queriesFor(solids, photos, frames);
+	const queries = queriesFor(photos, frames);
 	const manifest = {
 		schema: "coreml-native-fixtures/v1",
 		createdAt: new Date().toISOString(),

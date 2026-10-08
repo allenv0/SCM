@@ -76,7 +76,10 @@ function makeHardCuts(out, pattern, segSec) {
 		segSec,
 		pattern,
 		nCuts: tones.length - 1,
-		expected: Array.from({ length: tones.length - 1 }, (_, i) => (i + 1) * segSec),
+		expected: Array.from(
+			{ length: tones.length - 1 },
+			(_, i) => (i + 1) * segSec,
+		),
 	};
 }
 
@@ -141,12 +144,24 @@ async function main() {
 		cache: false,
 	};
 	await check("baseline finds all 5 BW hard cuts ±1 s", async () => {
-		const r = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, baselineOpts);
+		const r = await videoUtils.detectScenes(
+			ffmpeg,
+			hard.path,
+			null,
+			null,
+			baselineOpts,
+		);
 		assert.ok(r.boundaries.length >= 5, `only ${r.boundaries.length} bounds`);
 		assertPlanParity(hard.expected, r.boundaries, 1.0);
 	});
 	await check("software-180-fps10 plan matches baseline ±1 s", async () => {
-		const base = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, baselineOpts);
+		const base = await videoUtils.detectScenes(
+			ffmpeg,
+			hard.path,
+			null,
+			null,
+			baselineOpts,
+		);
 		const alt = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, {
 			...baselineOpts,
 			height: 180,
@@ -155,17 +170,32 @@ async function main() {
 		assertPlanParity(base.boundaries, alt.boundaries, 1.0);
 		assertPlanParity(hard.expected, alt.boundaries, 1.0);
 	});
-	await check("videotoolbox plan matches baseline ±1 s (may fall back)", async () => {
-		const base = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, baselineOpts);
-		const vt = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, {
-			...baselineOpts,
-			hwaccel: "videotoolbox",
-		});
-		assert.ok(vt.engine, "engine recorded");
-		assertPlanParity(base.boundaries, vt.boundaries, 1.0);
-	});
+	await check(
+		"videotoolbox plan matches baseline ±1 s (may fall back)",
+		async () => {
+			const base = await videoUtils.detectScenes(
+				ffmpeg,
+				hard.path,
+				null,
+				null,
+				baselineOpts,
+			);
+			const vt = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, {
+				...baselineOpts,
+				hwaccel: "videotoolbox",
+			});
+			assert.ok(vt.engine, "engine recorded");
+			assertPlanParity(base.boundaries, vt.boundaries, 1.0);
+		},
+	);
 	await check("keyframe refine plan matches baseline ±1 s", async () => {
-		const base = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, baselineOpts);
+		const base = await videoUtils.detectScenes(
+			ffmpeg,
+			hard.path,
+			null,
+			null,
+			baselineOpts,
+		);
 		const kf = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, {
 			...baselineOpts,
 			height: 180,
@@ -178,19 +208,34 @@ async function main() {
 	// ------------------------------------------------------------------
 	console.log("[deep] G-plan — static take → interval fallback");
 	// ------------------------------------------------------------------
-	await check("static take has ~no cuts; buildSegmentPlan interval-covers", async () => {
-		const r = await videoUtils.detectScenes(ffmpeg, staticTape.path, null, null, baselineOpts);
-		assert.ok(r.boundaries.length <= 1, `unexpected cuts ${r.boundaries}`);
-		const plan = await videoUtils.buildSegmentPlan(ffmpeg, staticTape.path, null, null, baselineOpts);
-		assert.ok(plan.length >= 8, `interval plan too small: ${plan.length}`);
-		assert.ok(plan.length <= 128);
-		// midpoints span the tape
-		assert.ok(plan[0].t >= 0);
-		assert.ok(plan[plan.length - 1].t <= 36);
-		for (const seg of plan) {
-			assert.ok(seg.dur >= 0.5, "dur floor");
-		}
-	});
+	await check(
+		"static take has ~no cuts; buildSegmentPlan interval-covers",
+		async () => {
+			const r = await videoUtils.detectScenes(
+				ffmpeg,
+				staticTape.path,
+				null,
+				null,
+				baselineOpts,
+			);
+			assert.ok(r.boundaries.length <= 1, `unexpected cuts ${r.boundaries}`);
+			const plan = await videoUtils.buildSegmentPlan(
+				ffmpeg,
+				staticTape.path,
+				null,
+				null,
+				baselineOpts,
+			);
+			assert.ok(plan.length >= 8, `interval plan too small: ${plan.length}`);
+			assert.ok(plan.length <= 128);
+			// midpoints span the tape
+			assert.ok(plan[0].t >= 0);
+			assert.ok(plan[plan.length - 1].t <= 36);
+			for (const seg of plan) {
+				assert.ok(seg.dur >= 0.5, "dur floor");
+			}
+		},
+	);
 
 	// ------------------------------------------------------------------
 	console.log("[deep] G-plan — budgets + clamp on hard cuts");
@@ -206,18 +251,27 @@ async function main() {
 		assert.ok(plan.length >= 1 && plan.length <= 32, `eco plan ${plan.length}`);
 		assert.ok(plan.length <= hard.expected.length + 1);
 	});
-	await check("buildSegmentPlan detailed keeps shots when under budget", async () => {
+	await check(
+		"buildSegmentPlan detailed keeps shots when under budget",
+		async () => {
+			const plan = await videoUtils.buildSegmentPlan(
+				ffmpeg,
+				hard.path,
+				null,
+				videoUtils.VIDEO_QUALITY_PRESETS.detailed,
+				baselineOpts,
+			);
+			assert.ok(plan.length >= 4, `detailed plan ${plan.length}`);
+		},
+	);
+	await check("tiny clip plan stays finite and in-range", async () => {
 		const plan = await videoUtils.buildSegmentPlan(
 			ffmpeg,
-			hard.path,
+			tiny.path,
 			null,
-			videoUtils.VIDEO_QUALITY_PRESETS.detailed,
+			null,
 			baselineOpts,
 		);
-		assert.ok(plan.length >= 4, `detailed plan ${plan.length}`);
-	});
-	await check("tiny clip plan stays finite and in-range", async () => {
-		const plan = await videoUtils.buildSegmentPlan(ffmpeg, tiny.path, null, null, baselineOpts);
 		assert.ok(plan.length >= 1, "tiny plan empty");
 		for (const s of plan) {
 			assert.ok(s.t >= 0 && s.t <= 18, `t=${s.t}`);
@@ -235,9 +289,21 @@ async function main() {
 		cacheDir,
 	};
 	await check("cold detect writes cache; hot detect is cached", async () => {
-		const cold = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, cacheOpts);
+		const cold = await videoUtils.detectScenes(
+			ffmpeg,
+			hard.path,
+			null,
+			null,
+			cacheOpts,
+		);
 		assert.strictEqual(cold.cached, false);
-		const hot = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, cacheOpts);
+		const hot = await videoUtils.detectScenes(
+			ffmpeg,
+			hard.path,
+			null,
+			null,
+			cacheOpts,
+		);
 		assert.strictEqual(hot.cached, true);
 		assert.deepStrictEqual(hot.boundaries, cold.boundaries);
 		assert.strictEqual(hot.engine, cold.engine);
@@ -258,7 +324,13 @@ async function main() {
 	await check("mtime bump misses cache", async () => {
 		const future = new Date(Date.now() + 10_000);
 		fs.utimesSync(hard.path, future, future);
-		const r = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, cacheOpts);
+		const r = await videoUtils.detectScenes(
+			ffmpeg,
+			hard.path,
+			null,
+			null,
+			cacheOpts,
+		);
 		assert.strictEqual(r.cached, false, "expected miss after mtime");
 	});
 	await check("cache disabled without cacheDir", async () => {
@@ -270,61 +342,116 @@ async function main() {
 		assert.strictEqual(r.cached, false);
 		assert.ok(Array.isArray(r.boundaries));
 	});
-	await check("concurrent cold detects both succeed (last writer wins)", async () => {
-		const p = path.join(tmp, "hard-copy.mp4");
-		fs.copyFileSync(hard.path, p);
-		const [a, b] = await Promise.all([
-			videoUtils.detectScenes(ffmpeg, p, null, null, cacheOpts),
-			videoUtils.detectScenes(ffmpeg, p, null, null, cacheOpts),
-		]);
-		assert.ok(Array.isArray(a.boundaries) && Array.isArray(b.boundaries));
-		const hot = await videoUtils.detectScenes(ffmpeg, p, null, null, cacheOpts);
-		assert.strictEqual(hot.cached, true);
-	});
+	await check(
+		"concurrent cold detects both succeed (last writer wins)",
+		async () => {
+			const p = path.join(tmp, "hard-copy.mp4");
+			fs.copyFileSync(hard.path, p);
+			const [a, b] = await Promise.all([
+				videoUtils.detectScenes(ffmpeg, p, null, null, cacheOpts),
+				videoUtils.detectScenes(ffmpeg, p, null, null, cacheOpts),
+			]);
+			assert.ok(Array.isArray(a.boundaries) && Array.isArray(b.boundaries));
+			const hot = await videoUtils.detectScenes(
+				ffmpeg,
+				p,
+				null,
+				null,
+				cacheOpts,
+			);
+			assert.strictEqual(hot.cached, true);
+		},
+	);
 
 	// ------------------------------------------------------------------
 	console.log("[deep] G-progress + measurement + errors");
 	// ------------------------------------------------------------------
 	await check("onProgress emits ≥1 event and ends at 1.0", async () => {
 		const events = [];
-		await videoUtils.detectScenes(ffmpeg, hard.path, (e) => events.push(e), 72, baselineOpts);
+		await videoUtils.detectScenes(
+			ffmpeg,
+			hard.path,
+			(e) => events.push(e),
+			72,
+			baselineOpts,
+		);
 		assert.ok(events.length >= 1, "no progress");
-		assert.ok(events[events.length - 1].pct === 1 || events.some((e) => e.pct >= 0.99));
+		assert.ok(
+			events[events.length - 1].pct === 1 || events.some((e) => e.pct >= 0.99),
+		);
 	});
 	await check("measured duration within ±2 s of probe", async () => {
 		const dur = await videoUtils.probeDuration(ffmpeg, hard.path);
-		const r = await videoUtils.detectScenes(ffmpeg, hard.path, null, dur, baselineOpts);
+		const r = await videoUtils.detectScenes(
+			ffmpeg,
+			hard.path,
+			null,
+			dur,
+			baselineOpts,
+		);
 		assert.ok(r.duration != null, "no measured duration");
-		assert.ok(Math.abs(r.duration - dur) <= 2, `measured ${r.duration} vs probe ${dur}`);
+		assert.ok(
+			Math.abs(r.duration - dur) <= 2,
+			`measured ${r.duration} vs probe ${dur}`,
+		);
 	});
 	await check("missing file → empty plan, no throw", async () => {
-		const r = await videoUtils.detectScenes(ffmpeg, path.join(tmp, "nope.mp4"), null, null, baselineOpts);
+		const r = await videoUtils.detectScenes(
+			ffmpeg,
+			path.join(tmp, "nope.mp4"),
+			null,
+			null,
+			baselineOpts,
+		);
 		assert.deepStrictEqual(r.boundaries, []);
-		const plan = await videoUtils.buildSegmentPlan(ffmpeg, path.join(tmp, "nope.mp4"));
+		const plan = await videoUtils.buildSegmentPlan(
+			ffmpeg,
+			path.join(tmp, "nope.mp4"),
+		);
 		assert.deepStrictEqual(plan, []);
 	});
 	await check("non-video bytes → empty / safe", async () => {
 		const bad = path.join(tmp, "not-video.mp4");
 		fs.writeFileSync(bad, "hello world not a video");
-		const plan = await videoUtils.buildSegmentPlan(ffmpeg, bad, null, null, baselineOpts);
+		const plan = await videoUtils.buildSegmentPlan(
+			ffmpeg,
+			bad,
+			null,
+			null,
+			baselineOpts,
+		);
 		assert.ok(Array.isArray(plan));
 	});
 
 	// ------------------------------------------------------------------
 	console.log("[deep] G-engine fallback");
 	// ------------------------------------------------------------------
-	await check("videotoolbox+hwdownload falls back to software and keeps plan", async () => {
-		const r = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, {
-			...baselineOpts,
-			hwaccel: "videotoolbox",
-			hwaccelOutputFormat: true,
-		});
-		// Either VT+hwdownload worked, or we fell back to software — both OK
-		// as long as boundaries match the software plan.
-		const base = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, baselineOpts);
-		assertPlanParity(base.boundaries, r.boundaries, 1.0);
-		assert.ok(["software", "videotoolbox+hwdownload", "videotoolbox"].includes(r.engine), r.engine);
-	});
+	await check(
+		"videotoolbox+hwdownload falls back to software and keeps plan",
+		async () => {
+			const r = await videoUtils.detectScenes(ffmpeg, hard.path, null, null, {
+				...baselineOpts,
+				hwaccel: "videotoolbox",
+				hwaccelOutputFormat: true,
+			});
+			// Either VT+hwdownload worked, or we fell back to software — both OK
+			// as long as boundaries match the software plan.
+			const base = await videoUtils.detectScenes(
+				ffmpeg,
+				hard.path,
+				null,
+				null,
+				baselineOpts,
+			);
+			assertPlanParity(base.boundaries, r.boundaries, 1.0);
+			assert.ok(
+				["software", "videotoolbox+hwdownload", "videotoolbox"].includes(
+					r.engine,
+				),
+				r.engine,
+			);
+		},
+	);
 	await check("explicit software never attempts VT args", async () => {
 		const args = videoUtils.buildDetectArgs(
 			hard.path,
@@ -336,25 +463,28 @@ async function main() {
 	// ------------------------------------------------------------------
 	console.log("[deep] G-env wiring (indexer-style)");
 	// ------------------------------------------------------------------
-	await check("env SCM_DETECT_HEIGHT/FPS/CACHE_DIR drive a cached 180p run", async () => {
-		process.env.SCM_DETECT_HEIGHT = "180";
-		process.env.SCM_DETECT_FPS = "10";
-		process.env.SCM_DETECT_CACHE_DIR = cacheDir;
-		process.env.SCM_DETECT_CACHE = "1";
-		try {
-			const p = path.join(tmp, "hard-env.mp4");
-			fs.copyFileSync(hard.path, p);
-			const r1 = await videoUtils.detectScenes(ffmpeg, p);
-			const r2 = await videoUtils.detectScenes(ffmpeg, p);
-			assert.strictEqual(r2.cached, true, "env cacheDir should enable cache");
-			assertPlanParity(hard.expected, r1.boundaries, 1.0);
-		} finally {
-			delete process.env.SCM_DETECT_HEIGHT;
-			delete process.env.SCM_DETECT_FPS;
-			delete process.env.SCM_DETECT_CACHE_DIR;
-			delete process.env.SCM_DETECT_CACHE;
-		}
-	});
+	await check(
+		"env SCM_DETECT_HEIGHT/FPS/CACHE_DIR drive a cached 180p run",
+		async () => {
+			process.env.SCM_DETECT_HEIGHT = "180";
+			process.env.SCM_DETECT_FPS = "10";
+			process.env.SCM_DETECT_CACHE_DIR = cacheDir;
+			process.env.SCM_DETECT_CACHE = "1";
+			try {
+				const p = path.join(tmp, "hard-env.mp4");
+				fs.copyFileSync(hard.path, p);
+				const r1 = await videoUtils.detectScenes(ffmpeg, p);
+				const r2 = await videoUtils.detectScenes(ffmpeg, p);
+				assert.strictEqual(r2.cached, true, "env cacheDir should enable cache");
+				assertPlanParity(hard.expected, r1.boundaries, 1.0);
+			} finally {
+				delete process.env.SCM_DETECT_HEIGHT;
+				delete process.env.SCM_DETECT_FPS;
+				delete process.env.SCM_DETECT_CACHE_DIR;
+				delete process.env.SCM_DETECT_CACHE;
+			}
+		},
+	);
 
 	// ------------------------------------------------------------------
 	console.log("[deep] G-cache file integrity");
@@ -373,20 +503,32 @@ async function main() {
 	// ------------------------------------------------------------------
 	console.log("[deep] G-speed smoke (informational)");
 	// ------------------------------------------------------------------
-	await check("180p+fps10 not slower than 360p baseline on hard fixture", async () => {
-		const t0 = Date.now();
-		await videoUtils.detectScenes(ffmpeg, hard.path, null, null, baselineOpts);
-		const baseMs = Date.now() - t0;
-		const t1 = Date.now();
-		await videoUtils.detectScenes(ffmpeg, hard.path, null, null, {
-			...baselineOpts,
-			height: 180,
-			fps: 10,
-		});
-		const altMs = Date.now() - t1;
-		// Allow noise: must not be >1.5x slower. Speedup is recorded in bench.
-		assert.ok(altMs < baseMs * 1.5 + 200, `180/fps10 ${altMs}ms vs base ${baseMs}ms`);
-	});
+	await check(
+		"180p+fps10 not slower than 360p baseline on hard fixture",
+		async () => {
+			const t0 = Date.now();
+			await videoUtils.detectScenes(
+				ffmpeg,
+				hard.path,
+				null,
+				null,
+				baselineOpts,
+			);
+			const baseMs = Date.now() - t0;
+			const t1 = Date.now();
+			await videoUtils.detectScenes(ffmpeg, hard.path, null, null, {
+				...baselineOpts,
+				height: 180,
+				fps: 10,
+			});
+			const altMs = Date.now() - t1;
+			// Allow noise: must not be >1.5x slower. Speedup is recorded in bench.
+			assert.ok(
+				altMs < baseMs * 1.5 + 200,
+				`180/fps10 ${altMs}ms vs base ${baseMs}ms`,
+			);
+		},
+	);
 
 	console.log(`\n[deep] ${passed} passed, ${failed} failed`);
 	if (failed) {

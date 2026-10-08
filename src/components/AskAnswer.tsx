@@ -212,6 +212,7 @@ export default function AskAnswer({
 			);
 		}
 		if (result.reason === "not-installed") {
+			const missingBinary = result.missing === "binary";
 			return (
 				<p className="flex items-start gap-2 text-sm leading-relaxed text-amber-300">
 					<IconSettings
@@ -220,8 +221,11 @@ export default function AskAnswer({
 						aria-hidden="true"
 					/>
 					<span>
-						LLMs need the local AI model (a one-time ~1.1GB download) — set it
-						up in Settings → LLMs Chat.
+						{missingBinary
+							? "The chat engine is missing (a one-time ~15MB download) — Settings → LLMs Chat → Download under Chat engine."
+							: result.missing === "model"
+								? "The chat model file is missing — Settings → LLMs Chat → Download the model."
+								: "LLMs need the local AI model (a one-time ~1.1GB download) — set it up in Settings → LLMs Chat."}
 					</span>
 				</p>
 			);

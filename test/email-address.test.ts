@@ -272,16 +272,21 @@ test("repairs an underscore Tesseract dropped as a space", () => {
 		"celeste_li@example.com",
 	]);
 	expect(extractEmailMatches("celeste li@example.com")).toMatchObject([
-		{ address: "celeste_li@example.com", raw: "celeste li@example.com", tier: "literal", index: 0 },
+		{
+			address: "celeste_li@example.com",
+			raw: "celeste li@example.com",
+			tier: "literal",
+			index: 0,
+		},
 	]);
 	// Left fragment already carrying the underscore: no double "__".
 	expect(extractEmailAddresses("celeste_ li@example.com")).toEqual([
 		"celeste_li@example.com",
 	]);
 	// Embedded among prose, evidence keeps the spaced source text.
-	expect(
-		extractEmailAddresses("Contact celeste li@example.com today"),
-	).toEqual(["celeste_li@example.com"]);
+	expect(extractEmailAddresses("Contact celeste li@example.com today")).toEqual(
+		["celeste_li@example.com"],
+	);
 });
 
 test("underscore repair stays conservative around prose and neighbours", () => {

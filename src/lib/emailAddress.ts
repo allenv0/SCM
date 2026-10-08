@@ -151,11 +151,18 @@ function tryUnderscoreRepair(
 	// The char before the left fragment must be a boundary, never email
 	// content: start, whitespace, or sentence punctuation — not "@" (a prior
 	// address's "x.com" tail) nor word chars (mid-word slice).
-	if (leftStart > 0 && !/[\s:;()[\]{}<>'"]/.test(commaNorm[leftStart - 1] ?? ""))
+	if (
+		leftStart > 0 &&
+		!/[\s:;()[\]{}<>'"]/.test(commaNorm[leftStart - 1] ?? "")
+	)
 		return null;
 	const repaired = left.endsWith("_") ? left + hit : `${left}_${hit}`;
 	if (!cleanEmailHit(repaired)) return null;
-	return { hit: repaired, index: leftStart, rawLen: index + hit.length - leftStart };
+	return {
+		hit: repaired,
+		index: leftStart,
+		rawLen: index + hit.length - leftStart,
+	};
 }
 
 // Clean one raw regex hit into a displayable address: fold any at/dot
@@ -198,13 +205,23 @@ export function extractEmailMatches(
 	// indices stay comparable across the three passes below and transfer
 	// back onto the original text for `raw`.
 	const commaNorm = text.replace(/,/g, ".");
-	const candidates: { hit: string; index: number; tier: EmailTier; rawLen?: number }[] = [];
+	const candidates: {
+		hit: string;
+		index: number;
+		tier: EmailTier;
+		rawLen?: number;
+	}[] = [];
 	for (const m of commaNorm.matchAll(LITERAL_RE)) {
 		const hit = m[0];
 		const index = m.index ?? 0;
 		const repaired = tryUnderscoreRepair(commaNorm, hit, index);
 		if (repaired) {
-			candidates.push({ hit: repaired.hit, index: repaired.index, tier: "literal", rawLen: repaired.rawLen });
+			candidates.push({
+				hit: repaired.hit,
+				index: repaired.index,
+				tier: "literal",
+				rawLen: repaired.rawLen,
+			});
 		} else {
 			candidates.push({ hit, index, tier: "literal" });
 		}

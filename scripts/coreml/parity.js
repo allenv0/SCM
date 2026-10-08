@@ -54,7 +54,11 @@ function membershipChange(a, b, k) {
 	const B = new Set(topKSet(b, k));
 	const onlyA = [...A].filter((x) => !B.has(x));
 	const onlyB = [...B].filter((x) => !A.has(x));
-	return { onlyCpu: onlyA, onlyNative: onlyB, identical: onlyA.length === 0 && onlyB.length === 0 };
+	return {
+		onlyCpu: onlyA,
+		onlyNative: onlyB,
+		identical: onlyA.length === 0 && onlyB.length === 0,
+	};
 }
 
 function orderChange(a, b, k) {
@@ -160,7 +164,9 @@ async function main() {
 	// Build library rows from fixture filenames + CPU / native embeddings.
 	const filenames = index.images.map((r) => r.id + ".jpg");
 	const cpuEmbs = index.images.map((r) => cpuNorms.get(r.id));
-	const natEmbs = index.images.map((r) => natNorms.get(r.id) || cpuNorms.get(r.id));
+	const natEmbs = index.images.map(
+		(r) => natNorms.get(r.id) || cpuNorms.get(r.id),
+	);
 	// Filename phrases / OCR disabled for the fixture corpus: scoreLibrary
 	// phrase path is skipped when phrases.length !== filenames.length.
 	const phrases = [];
@@ -195,7 +201,14 @@ async function main() {
 	for (const q of queriesDump.queries) {
 		const qVec = normalize(q.centered || q.normalized);
 		const trimmed = q.query;
-		const cpuRows = scoreLibrary(libCpu, trimmed, qVec, topK, thresholds, norms);
+		const cpuRows = scoreLibrary(
+			libCpu,
+			trimmed,
+			qVec,
+			topK,
+			thresholds,
+			norms,
+		);
 		const natRows = scoreLibrary(
 			libNat,
 			trimmed,
@@ -211,12 +224,6 @@ async function main() {
 		const natTop5 = topKSet(natRows, 5);
 		const retained = expected.filter((e) => cpuTop5.includes(e));
 		const retainedNat = expected.filter((e) => natTop5.includes(e));
-		const top5Ok =
-			expected.length === 0 ||
-			(expected.every((e) => cpuTop5.includes(e) || !cpuRows.some((r) => r.filename === e))
-				? true
-				: expected.filter((e) => cpuTop5.includes(e)).length >=
-					Math.min(expected.length, 5));
 		// Gate: every labeled expected positive remains Top-5 on BOTH corpora
 		// when it was Top-5 on CPU (retention), and expected positives present
 		// in CPU Top-5 stay in native Top-5.
@@ -236,7 +243,13 @@ async function main() {
 		for (const [fn, cs] of cpuScore) {
 			const ns = natScore.get(fn);
 			if (ns === undefined) {
-				deltas.push({ filename: fn, cpu: cs, native: null, delta: null, inTieBand: false });
+				deltas.push({
+					filename: fn,
+					cpu: cs,
+					native: null,
+					delta: null,
+					inTieBand: false,
+				});
 				continue;
 			}
 			const d = Math.abs(cs - ns);
@@ -268,7 +281,8 @@ async function main() {
 			membership: mem,
 			orderChanges: orderChange(cpuRows, natRows, topK),
 			scoreDeltas: deltas,
-			diversityNote: "diversity filter applied inside scoreLibrary when candidates > topK",
+			diversityNote:
+				"diversity filter applied inside scoreLibrary when candidates > topK",
 		});
 	}
 
@@ -327,10 +341,12 @@ async function main() {
 
 	// Flag any score deltas outside the predeclared band
 	const outside = retrieval.flatMap((r) =>
-		r.scoreDeltas.filter((d) => d.native !== null && !d.inTieBand).map((d) => ({
-			query: r.query,
-			...d,
-		})),
+		r.scoreDeltas
+			.filter((d) => d.native !== null && !d.inTieBand)
+			.map((d) => ({
+				query: r.query,
+				...d,
+			})),
 	);
 	if (outside.length) {
 		console.log(`[parity] score deltas outside tie band: ${outside.length}`);

@@ -103,9 +103,15 @@ check("hwdownload form inserts hwdownload,format=nv12", () => {
 	assert.ok(f.includes("hwdownload,format=nv12,scale="));
 });
 check("software args have no -hwaccel; VT args do", () => {
-	const soft = buildDetectArgs("/v.mp4", resolveDetectOptions({ hwaccel: "software" }));
+	const soft = buildDetectArgs(
+		"/v.mp4",
+		resolveDetectOptions({ hwaccel: "software" }),
+	);
 	assert.ok(!soft.includes("-hwaccel"));
-	const hw = buildDetectArgs("/v.mp4", resolveDetectOptions({ hwaccel: "videotoolbox" }));
+	const hw = buildDetectArgs(
+		"/v.mp4",
+		resolveDetectOptions({ hwaccel: "videotoolbox" }),
+	);
 	assert.ok(hw.includes("-hwaccel"));
 	assert.ok(hw.includes("videotoolbox"));
 	const i = hw.indexOf("-i");
@@ -138,7 +144,9 @@ check("same identity+config hits; size/mtime/config miss", () => {
 	const filePath = path.join(tmp, "a.mp4");
 	fs.writeFileSync(filePath, "xxxx");
 	const ident = detectCache.fileIdentity(filePath);
-	const configKey = detectConfigKey(resolveDetectOptions({ hwaccel: "software" }));
+	const configKey = detectConfigKey(
+		resolveDetectOptions({ hwaccel: "software" }),
+	);
 	const base = {
 		filePath: path.resolve(filePath),
 		...ident,

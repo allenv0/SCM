@@ -92,10 +92,16 @@ function matchesTab(img: ImageItem, tabId: string): boolean {
 }
 
 // A tab in the tab bar: a built-in category or a saved-search tab (which
-// carries the search mode it was saved in).
+// carries the search mode it was saved in, plus the YouTube watch flag).
 type Tab =
 	| { id: string; label: string; isSaved: false }
-	| { id: string; label: string; mode: SavedTabMode; isSaved: true };
+	| {
+			id: string;
+			label: string;
+			mode: SavedTabMode;
+			isSaved: true;
+			watch?: boolean;
+	  };
 
 interface ImageItem {
 	id: string;
@@ -382,11 +388,90 @@ function MasonryGrid({
 	);
 
 	// Visible built-ins in tab-bar order (Settings → Smart Tabs). All and
-	// Videos are always on; Screenshots/Email render only when enabled.
+	// Videos are always on; Screenshots/Email/YouTube render only when enabled.
 	const visibleCategories = useMemo(
 		() => visibleBuiltInTabs(enabledTabs),
 		[enabledTabs],
 	);
+
+	// YouTube membership: filenames + per-file channel from youtube.json
+	// (main-process metadata). Overlapping view like Email — items keep
+	// their Videos membership. Refreshed on mount and on every library or
+	// youtube status broadcast.
+	const [ytFilenames, setYtFilenames] = useState<Set<string>>(new Set());
+	const [ytChannelByFile, setYtChannelByFile] = useState<Map<string, string>>(
+		new Map(),
+	);
+	const [ytChannel, setYtChannel] = useState<string>("All");
+	const refreshYoutubeFiles = useCallback(async () => {
+		try {
+			const res = await window.memories?.getYoutubeFiles?.();
+			if (res?.ok) {
+				setYtFilenames(new Set(res.files ?? []));
+				const map = new Map<string, string>();
+				for (const entry of Object.values(res.meta ?? {})) {
+					if (
+						entry &&
+						typeof entry.filename === "string" &&
+						typeof entry.channel === "string" &&
+						entry.channel
+					) {
+						map.set(entry.filename, entry.channel);
+					}
+				}
+				// Fallback: files without meta channel still count as YouTube.
+				for (const f of res.files ?? []) {
+					if (!map.has(f)) map.set(f, "Unknown channel");
+				}
+				setYtChannelByFile(map);
+				return;
+			}
+		} catch {
+			/* bridge unavailable (tests) — keep empty set */
+		}
+		setYtFilenames(new Set());
+		setYtChannelByFile(new Map());
+	}, []);
+	useEffect(() => {
+		void refreshYoutubeFiles();
+		const off = window.memories?.onStatus?.((payload) => {
+			const t = (payload as { type?: string }).type;
+			if (t === "library-updated" || t === "youtube")
+				void refreshYoutubeFiles();
+		});
+		return () => {
+			try {
+				off?.();
+			} catch {
+				/* ignore */
+			}
+		};
+	}, [refreshYoutubeFiles]);
+
+	const matchesTabWithYt = useCallback(
+		(img: ImageItem, tabId: string): boolean => {
+			if (tabId === "YouTube") {
+				if (!ytFilenames.has(img.filename)) return false;
+				if (ytChannel !== "All") {
+					return (ytChannelByFile.get(img.filename) ?? "") === ytChannel;
+				}
+				return true;
+			}
+			return matchesTab(img, tabId);
+		},
+		[ytFilenames, ytChannelByFile, ytChannel],
+	);
+
+	const ytChannels = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const filename of ytFilenames) {
+			const ch = ytChannelByFile.get(filename) ?? "Unknown channel";
+			counts.set(ch, (counts.get(ch) ?? 0) + 1);
+		}
+		return [...counts.entries()]
+			.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+			.map(([name, count]) => ({ name, count }));
+	}, [ytFilenames, ytChannelByFile]);
 
 	// Search state
 	const [query, setQuery] = useState("");
@@ -813,10 +898,10 @@ function MasonryGrid({
 			const filtered =
 				tabId === "All"
 					? browseSource
-					: browseSource.filter((img) => matchesTab(img, tabId));
+					: browseSource.filter((img) => matchesTabWithYt(img, tabId));
 			setFilteredImages(filtered);
 		},
-		[browseSource],
+		[browseSource, matchesTabWithYt],
 	);
 
 	// Initial load, filter change, and library refresh (a new initialImages
@@ -826,6 +911,13 @@ function MasonryGrid({
 	useEffect(() => {
 		applyFilter(activeFilter);
 	}, [activeFilter, browseSource, applyFilter]);
+
+	// A channel that vanished (unsubscribed, metadata reset) must not leave
+	// the YouTube tab filtered to nothing — fall back to All channels.
+	useEffect(() => {
+		if (ytChannel === "All") return;
+		if (!ytChannels.some((c) => c.name === ytChannel)) setYtChannel("All");
+	}, [ytChannel, ytChannels]);
 
 	// Derived display list: semantic search results (ranked) or
 	// category-filtered grid. Results carry their scene on the item. In
@@ -894,12 +986,13 @@ function MasonryGrid({
 		return (searchResults ?? [])
 			.map(attachScene)
 			.filter((img): img is DisplayItem => Boolean(img))
-			.filter((img) => savedTabActive || matchesTab(img, activeFilter));
+			.filter((img) => savedTabActive || matchesTabWithYt(img, activeFilter));
 	}, [
 		searchResults,
 		imagesByFilename,
 		activeFilter,
 		savedTabActive,
+		matchesTabWithYt,
 		query,
 		ocrWordBoxesByFilename,
 		ocrMode,
@@ -1198,10 +1291,12 @@ function MasonryGrid({
 	// what's on screen. Category names are reserved, so a saved search can
 	// never shadow a built-in tab.
 	const confirmSaveTab = useCallback(
-		(label: string, mode: SavedTabMode) => {
+		(label: string, mode: SavedTabMode, watch?: boolean) => {
 			if (!tabDialog || tabDialog.mode !== "create") return;
 			const p = tabDialog.prompt;
-			setSavedSearches((prev) => addSavedSearch(prev, p, label, mode));
+			setSavedSearches((prev) =>
+				addSavedSearch(prev, p, label, mode, 20, watch === true),
+			);
 			setActiveFilter(p);
 			setTabDialog(null);
 		},
@@ -1211,10 +1306,12 @@ function MasonryGrid({
 	// Confirm the edit dialog: keep the prompt (identity) but adopt the
 	// new label and search mode.
 	const confirmEditTab = useCallback(
-		(label: string, mode: SavedTabMode) => {
+		(label: string, mode: SavedTabMode, watch?: boolean) => {
 			if (!tabDialog || tabDialog.mode !== "edit") return;
 			const p = tabDialog.tab.prompt;
-			setSavedSearches((prev) => updateSavedSearch(prev, p, { label, mode }));
+			setSavedSearches((prev) =>
+				updateSavedSearch(prev, p, { label, mode, watch }),
+			);
 			setTabDialog(null);
 		},
 		[tabDialog],
@@ -1254,6 +1351,7 @@ function MasonryGrid({
 			label: savedTabLabel(tab.label),
 			mode: tab.mode,
 			isSaved: true as const,
+			watch: tab.watch === true,
 		})),
 	];
 
@@ -1312,11 +1410,15 @@ function MasonryGrid({
 		// broken search.
 		if (!tab.isSaved) {
 			setOcrMode(false);
-			setDialogueMode(false);
 			// LLMs spans the whole library by design — a category click ends
 			// it like every other mode switch.
 			setAskMode(false);
+			// Videos opens in Scenes mode so a click lands on visual moments.
+			// YouTube opens in Dialogue mode: subscription videos are
+			// speech-heavy (talks, essays, explainers), so spoken-line jumps
+			// are the useful default; Scenes is one click away.
 			setSceneMode(tab.id === "Videos");
+			setDialogueMode(tab.id === "YouTube");
 			// The All tab is home — clicking it also clears any active query
 			// so the full library (Files mode) is back on screen.
 			if (tab.id === "All") setQuery("");
@@ -1572,6 +1674,13 @@ function MasonryGrid({
 										>
 											{tab.isSaved ? (
 												<span className="flex items-center gap-0 transition-all duration-200 group-hover:gap-0.5 group-focus-within:gap-0.5">
+													{tab.watch && (
+														<span
+															aria-label="Watched YouTube interest"
+															title="Watched YouTube interest"
+															className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"
+														/>
+													)}
 													{tab.label}
 													<button
 														type="button"
@@ -1643,6 +1752,48 @@ function MasonryGrid({
 					</div>
 				</div>
 
+				{/* YouTube channel filter: All + per-channel chips, ranked by
+				    download count. Rendered only under the YouTube tab; the
+				    choice scopes both browse and search (matchesTabWithYt). */}
+				{activeFilter === "YouTube" && ytChannels.length > 0 && (
+					<div
+						className="mt-3 flex max-w-[56rem] flex-wrap items-center justify-center gap-1.5"
+						role="group"
+						aria-label="Filter by channel"
+					>
+						<button
+							type="button"
+							aria-pressed={ytChannel === "All"}
+							onClick={() => setYtChannel("All")}
+							className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-all duration-200 ${
+								ytChannel === "All"
+									? "bg-gradient-to-b from-white to-zinc-200 text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(15,23,42,0.2)] dark:from-zinc-600 dark:to-zinc-700 dark:text-white"
+									: "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+							}`}
+						>
+							All channels
+						</button>
+						{ytChannels.map((c) => (
+							<button
+								key={c.name}
+								type="button"
+								aria-pressed={ytChannel === c.name}
+								title={`${c.count} video${c.count === 1 ? "" : "s"}`}
+								onClick={() =>
+									setYtChannel((cur) => (cur === c.name ? "All" : c.name))
+								}
+								className={`max-w-[12rem] truncate rounded-full px-3 py-1 text-[11px] font-semibold transition-all duration-200 ${
+									ytChannel === c.name
+										? "bg-gradient-to-b from-white to-zinc-200 text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(15,23,42,0.2)] dark:from-zinc-600 dark:to-zinc-700 dark:text-white"
+										: "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+								}`}
+							>
+								{c.name} · {c.count}
+							</button>
+						))}
+					</div>
+				)}
+
 				{/* Semantic search */}
 				<div className="mt-4 flex flex-col items-center gap-3 sm:mt-5">
 					<MemorySearch
@@ -1705,6 +1856,7 @@ function MasonryGrid({
 										if (
 											activeFilter !== "All" &&
 											activeFilter !== "Videos" &&
+											activeFilter !== "YouTube" &&
 											!isSaved(activeFilter, savedSearches)
 										) {
 											setActiveFilter("All");
@@ -1738,6 +1890,7 @@ function MasonryGrid({
 										if (
 											activeFilter !== "All" &&
 											activeFilter !== "Videos" &&
+											activeFilter !== "YouTube" &&
 											!isSaved(activeFilter, savedSearches)
 										) {
 											setActiveFilter("All");
@@ -1764,9 +1917,10 @@ function MasonryGrid({
 									setDialogueMode(false);
 									setAskMode(false);
 									// Videos are never OCR'd (their content is scene-
-									// searchable), so OCR mode under the Videos tab is a
-									// guaranteed-empty combination — snap back to All.
-									if (activeFilter === "Videos") {
+									// searchable), so OCR mode under the Videos or
+									// YouTube tab is a guaranteed-empty combination —
+									// snap back to All.
+									if (activeFilter === "Videos" || activeFilter === "YouTube") {
 										setActiveFilter("All");
 									}
 								}}
@@ -2154,7 +2308,11 @@ function MasonryGrid({
 												? "Reading your library…"
 												: askResult && askResult.ok === false
 													? askResult.reason === "not-installed"
-														? "LLMs need the local AI model — set it up in Settings → LLMs Chat."
+														? askResult.missing === "binary"
+															? "Chat engine missing — Settings → LLMs Chat → Download under Chat engine."
+															: askResult.missing === "model"
+																? "Chat model file missing — Settings → LLMs Chat → Download the model."
+																: "LLMs need the local AI model — set it up in Settings → LLMs Chat."
 														: (askResult.error ?? "LLMs failed — try again.")
 													: `No text or dialogue evidence for “${parseAskScope(query.trim()).query || query.trim()}”.`
 											: `No matches for “${query.trim()}”. Try a different description.`
@@ -2164,7 +2322,11 @@ function MasonryGrid({
 									: "No photos with an email address found yet."
 								: activeFilter === "Videos"
 									? "No videos found in this category."
-									: "No images found in this category."}
+									: activeFilter === "YouTube"
+										? ytFilenames.size === 0
+											? "No YouTube downloads yet — add a link in Settings → YouTube."
+											: `No videos from ${ytChannel === "All" ? "these channels" : ytChannel} match.`
+										: "No images found in this category."}
 					</p>
 				</div>
 			)}
@@ -2388,6 +2550,9 @@ function MasonryGrid({
 					defaultMode={
 						tabDialog.mode === "edit" ? tabDialog.tab.mode : currentMode
 					}
+					defaultWatch={
+						tabDialog.mode === "edit" ? tabDialog.tab.watch === true : false
+					}
 					onSave={tabDialog.mode === "edit" ? confirmEditTab : confirmSaveTab}
 					onCancel={() => setTabDialog(null)}
 				/>
@@ -2604,6 +2769,7 @@ function SaveTabDialog({
 	query,
 	defaultName,
 	defaultMode,
+	defaultWatch = false,
 	onSave,
 	onCancel,
 }: {
@@ -2612,11 +2778,13 @@ function SaveTabDialog({
 	query: string;
 	defaultName: string;
 	defaultMode: SavedTabMode;
-	onSave: (label: string, mode: SavedTabMode) => void;
+	defaultWatch?: boolean;
+	onSave: (label: string, mode: SavedTabMode, watch?: boolean) => void;
 	onCancel: () => void;
 }) {
 	const [name, setName] = useState(defaultName);
 	const [mode, setMode] = useState<SavedTabMode>(defaultMode);
+	const [watch, setWatch] = useState(defaultWatch);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const dialogRef = useRef<HTMLDivElement>(null);
 	useEffect(() => {
@@ -2628,7 +2796,7 @@ function SaveTabDialog({
 	const trimmed = normalizePrompt(name);
 	const submit = () => {
 		if (!trimmed) return;
-		onSave(trimmed, mode);
+		onSave(trimmed, mode, watch);
 	};
 
 	const modeOptions: { id: SavedTabMode; label: string }[] = [
@@ -2709,6 +2877,15 @@ function SaveTabDialog({
 							))}
 						</div>
 					</div>
+					<label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+						<input
+							type="checkbox"
+							checked={watch}
+							onChange={(e) => setWatch(e.target.checked)}
+							aria-label="Watch as YouTube interest"
+						/>
+						<span>Watch as YouTube interest — auto-match new downloads</span>
+					</label>
 					<div className="mt-4 flex justify-end gap-2">
 						<button
 							type="button"

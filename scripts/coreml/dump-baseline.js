@@ -8,6 +8,9 @@
 
 const fs = require("fs");
 const path = require("path");
+// Explicit require: global `crypto` is absent on older Electron/node (the
+// same guard main.js applies — the built-in shadows nothing here).
+// eslint-disable-next-line no-redeclare
 const crypto = require("crypto");
 
 const ROOT = path.resolve(__dirname, "..", "..");
@@ -23,18 +26,27 @@ function sha256(buf) {
 async function main() {
 	const manifest = JSON.parse(fs.readFileSync(FIXTURES, "utf8"));
 	const { loadStack } = require(path.join(ROOT, "scripts", "bench-common.js"));
-	const core = require(path.join(ROOT, "indexer", "build-memory-embeddings-core.js"));
-	const {
-		validateEmbedding,
-		normalizeInPlace,
-	} = require(path.join(ROOT, "indexer", "memory-embedding-utils.js"));
+	const core = require(
+		path.join(ROOT, "indexer", "build-memory-embeddings-core.js"),
+	);
+	const { validateEmbedding, normalizeInPlace } = require(
+		path.join(ROOT, "indexer", "memory-embedding-utils.js"),
+	);
 	const { resolveModelId } = require(path.join(ROOT, "indexer", "models.js"));
 
 	const modelId = process.env.INDEXER_MODEL || "siglip2-base-patch16-224";
 	console.log(`[dump] loading CPU-q8 stack for ${modelId} …`);
 	const stack = await loadStack({ modelId, log: console });
-	const { config, extractor, RawImage, sharp, dim, tokenizer, textModel, outputKey } =
-		stack;
+	const {
+		config,
+		extractor,
+		RawImage,
+		sharp,
+		dim,
+		tokenizer,
+		textModel,
+		outputKey,
+	} = stack;
 	if (config.visionPool !== true) {
 		throw new Error(
 			`model ${modelId} must use visionPool:true (SigLIP pooler_output)`,
@@ -66,15 +78,13 @@ async function main() {
 
 		// Processor path: use the same AutoImageProcessor the plan verified
 		// as bit-identical. Fall back to extractor-internal if unavailable.
-		let pixel = null;
-		let pixelSha = null;
-		let pixelLen = 0;
 		const { AutoImageProcessor } = await import("@huggingface/transformers");
 		const processor = await AutoImageProcessor.from_pretrained(config.repo);
 		const procOut = await processor(image);
 		const pv = procOut.pixel_values;
 		// pv is a Tensor-like { data, dims } or Float32Array
-		const pvData = pv && pv.data ? new Float32Array(pv.data) : new Float32Array(pv);
+		const pvData =
+			pv && pv.data ? new Float32Array(pv.data) : new Float32Array(pv);
 		if (pvData.length !== 3 * 224 * 224) {
 			throw new Error(
 				`pixel_values length ${pvData.length} != ${3 * 224 * 224} for ${img.id}`,
@@ -88,9 +98,8 @@ async function main() {
 		);
 		const tensorFile = path.join(tensorsDir, `${img.id}.f32`);
 		fs.writeFileSync(tensorFile, bytes);
-		pixelSha = sha256(bytes);
-		pixelLen = bytes.length;
-		pixel = pvData;
+		const pixelSha = sha256(bytes);
+		const pixelLen = bytes.length;
 
 		// Direct unnormalized q8 pipeline result (do NOT call embedRawImage —
 		// it normalizes in place).
@@ -155,7 +164,11 @@ async function main() {
 	}
 	fs.writeFileSync(
 		path.join(OUT, "queries.json"),
-		JSON.stringify({ dim, textMean: textMean ? Array.from(textMean) : null, queries }),
+		JSON.stringify({
+			dim,
+			textMean: textMean ? Array.from(textMean) : null,
+			queries,
+		}),
 	);
 
 	fs.writeFileSync(

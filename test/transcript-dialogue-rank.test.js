@@ -411,13 +411,13 @@ async function main() {
 			await check(
 				"love → literal love-chunks lead; CIA → its chunk; gibberish → []",
 				async () => {
-				process.env.TRANSFORMERS_CACHE = path.join(
-					os.homedir(),
-					"Library",
-					"Application Support",
-					"scm",
-					"models",
-				);
+					process.env.TRANSFORMERS_CACHE = path.join(
+						os.homedir(),
+						"Library",
+						"Application Support",
+						"scm",
+						"models",
+					);
 					const mod = await import("@huggingface/transformers");
 					mod.env.cacheDir = process.env.TRANSFORMERS_CACHE;
 					const core =

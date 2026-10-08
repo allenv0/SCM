@@ -36,7 +36,11 @@ const vec = (base) =>
 	);
 	const meta = store.readEmbedMeta(MODEL);
 	assert.ok(meta, "meta written alongside bins");
-	assert.equal(meta.codeVersion, store.EMBED_CODE_VERSION, "code version stamped");
+	assert.equal(
+		meta.codeVersion,
+		store.EMBED_CODE_VERSION,
+		"code version stamped",
+	);
 	assert.deepEqual(meta.filenames, names3, "snapshot records identity");
 	assert.equal(meta.incomplete, false, "explicit write defaults to complete");
 
@@ -125,9 +129,16 @@ const vec = (base) =>
 	assert.equal(plan.reason, "bin-meta-mismatch", "reason names the cause");
 
 	// 10. readBinPartial is length-tolerant; readBin still quarantines rot.
-	await store.writeBins(MODEL, [vec(0), vec(10)], [vec(100), vec(110)], DIM, DIM, {
-		filenames: ["a.jpg", "b.jpg"],
-	});
+	await store.writeBins(
+		MODEL,
+		[vec(0), vec(10)],
+		[vec(100), vec(110)],
+		DIM,
+		DIM,
+		{
+			filenames: ["a.jpg", "b.jpg"],
+		},
+	);
 	const partial = store.readBinPartial(store.embedFileFor(MODEL), DIM);
 	assert.equal(partial.length, 2, "partial read returns all rows");
 	fs.writeFileSync(store.embedFileFor("rot-model"), Buffer.from("12345"));

@@ -178,6 +178,7 @@ const {
 	RANK_RELATIVE_KEEP,
 	scoreLibrary,
 } = require("./main-lib/rank-search.js");
+const youtube = require("./main-lib/youtube.js");
 
 const SCHEME = "app";
 
@@ -273,6 +274,7 @@ initLibraryStore({ userDataDir: app.getPath("userData") });
 initEmbeddingVersions({ userDataDir: app.getPath("userData") });
 initLibraryReset({ dataDir: DATA_DIR });
 initLlmConfig({ userDataDir: app.getPath("userData") });
+youtube.initYoutube({ userDataDir: app.getPath("userData") });
 // LLMs-mode sidecar (main-lib/llm/server.js): status events ride the same
 // memories:status channel as every other tray. Idle download/spawn work is
 // broadcast-only — the tray logic deliberately never reads "llm" events.
@@ -871,8 +873,7 @@ function reapStaleFfmpegOrphans() {
 			const pid = Number(m[1]);
 			const ppid = Number(m[2]);
 			const cmd = m[3] || "";
-			if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid)
-				continue;
+			if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) continue;
 			// Our bundled binary only: packaged Resources/ffmpeg or
 			// ffmpeg-static under node_modules. Never touch system ffmpeg.
 			const isOurs =
@@ -2146,7 +2147,13 @@ async function maybeResumeDeltaFill() {
 			});
 		}
 	};
-	void runDeltaFill(resumeModelId, resumeDim, [...delta.missing], gen, broadcast);
+	void runDeltaFill(
+		resumeModelId,
+		resumeDim,
+		[...delta.missing],
+		gen,
+		broadcast,
+	);
 }
 
 // Retired/unknown model ids are detected by loadLibrary without changing the
@@ -3565,8 +3572,7 @@ async function pumpEnrichment() {
 		// made zero progress across all retries, park it like the empty-plan
 		// path (empty segment list = covered, never retried until re-import).
 		try {
-			const noProgress =
-				!job.off && !job.okTotal && !job.skipTotal;
+			const noProgress = !job.off && !job.okTotal && !job.skipTotal;
 			if (noProgress && job.filename) {
 				const parkModelId = loadLibrary().modelId;
 				const sc = loadSegments(parkModelId);
@@ -3768,7 +3774,11 @@ function ensurePreview(filename, t) {
 					clearTimeout(timer);
 					if (code === 0) resolve();
 					else
-						reject(new Error(`preview transcode exited ${code}: ${stderr.slice(-300)}`));
+						reject(
+							new Error(
+								`preview transcode exited ${code}: ${stderr.slice(-300)}`,
+							),
+						);
 				});
 			});
 		} catch (err) {
@@ -6250,7 +6260,9 @@ ipcMain.handle("memories:open-external", async (_event, filename) => {
 		}
 		return { ok: true };
 	} catch (err) {
-		console.warn(`[memories] open-external failed for ${filename}: ${err.message}`);
+		console.warn(
+			`[memories] open-external failed for ${filename}: ${err.message}`,
+		);
 		return { ok: false };
 	}
 });
@@ -8212,6 +8224,512 @@ ipcMain.handle("memories:ask", async (event, payload) => {
 	}
 });
 
+// ---------------------------------------------------------------------------
+// YouTube video agent (feat/youtube-agent): yt-dlp downloads -> importPaths.
+// Downloads land in library/youtube-staging, then flow through the existing
+// import pipeline (hash-dedupe, embeds, scenes, Whisper, OCR). Matching is
+// renderer-side: saved searches with watch:true filter rank results to
+// youtube.json filenames and jump to timecodes. Main only downloads,
+// imports, and reports status.
+// ---------------------------------------------------------------------------
+
+const youtubeJobs = new Map(); // jobId -> { jobId, kind, url, label, status, error?, files? }
+let youtubeQueue = []; // [{ jobId, kind, url, label }]
+let youtubeInFlight = false;
+let youtubePollTimer = null;
+
+function youtubeBroadcast() {
+	try {
+		const payload = youtubeStatus();
+		for (const win of BrowserWindow.getAllWindows()) {
+			win.webContents.send("memories:status", payload);
+		}
+	} catch {
+		/* broadcast is best-effort */
+	}
+}
+
+function youtubeStatus() {
+	let cfg;
+	try {
+		cfg = youtube.readYoutubeConfig(readSettings);
+	} catch {
+		cfg = youtube.parseYoutubeConfig(null);
+	}
+	return {
+		type: "youtube",
+		phase: youtubeInFlight ? "downloading" : "idle",
+		pending: youtubeQueue.length,
+		active: youtubeInFlight,
+		jobs: [...youtubeJobs.values()].slice(-20),
+		channels: cfg.channels,
+		quality: cfg.quality,
+		enabled: cfg.enabled,
+		maxPerChannel: cfg.maxPerChannel,
+		pollHours: cfg.pollHours,
+		storageCapGB: cfg.storageCapGB,
+		binaryReady: youtubeBinaryReady(),
+	};
+}
+
+function youtubeBinaryReady() {
+	try {
+		if (fs.existsSync(youtube.binPath())) return true;
+	} catch {
+		/* fall through to PATH check */
+	}
+	for (const p of ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"]) {
+		try {
+			if (fs.existsSync(p)) return true;
+		} catch {
+			/* next */
+		}
+	}
+	return false;
+}
+
+function resolveYtDlpBinary() {
+	// Prefer the app-managed pinned binary; fall back to a system yt-dlp
+	// (Homebrew) so existing installs work before the first fetch.
+	try {
+		const managed = youtube.binPath();
+		if (fs.existsSync(managed)) return managed;
+	} catch {
+		/* fall through */
+	}
+	for (const p of [
+		"/opt/homebrew/bin/yt-dlp",
+		"/usr/local/bin/yt-dlp",
+		"yt-dlp",
+	]) {
+		try {
+			if (p !== "yt-dlp" && fs.existsSync(p)) return p;
+		} catch {
+			/* next */
+		}
+	}
+	return "yt-dlp"; // PATH lookup; spawn reports ENOENT cleanly when absent
+}
+
+function downloadYtDlpBinary(version) {
+	// Fetch-on-first-use: keeps the DMG small; mirrors the weights/OCR-pack
+	// pattern. macOS universal asset; chmod +x on landing.
+	const ver =
+		typeof version === "string" && version
+			? version
+			: youtube.YTDLP_PINNED_VERSION;
+	const asset = "yt-dlp_macos";
+	const url = `${youtube.YTDLP_RELEASE_BASE}/${ver}/${asset}`;
+	const dest = youtube.binPath();
+	return new Promise((resolve) => {
+		try {
+			fs.mkdirSync(path.dirname(dest), { recursive: true });
+		} catch {
+			resolve({ ok: false, error: "mkdir failed" });
+			return;
+		}
+		const tryGet = (u, redirects) => {
+			try {
+				const mod = u.startsWith("https:") ? require("https") : require("http");
+				const req = mod.get(
+					u,
+					{ headers: { "User-Agent": "SCM-youtube-agent" } },
+					(res) => {
+						if (
+							res.statusCode >= 300 &&
+							res.statusCode < 400 &&
+							res.headers.location &&
+							redirects > 0
+						) {
+							res.resume();
+							tryGet(res.headers.location, redirects - 1);
+							return;
+						}
+						if (res.statusCode !== 200) {
+							res.resume();
+							resolve({ ok: false, error: `http ${res.statusCode}` });
+							return;
+						}
+						const tmp = `${dest}.tmp-${process.pid}-${Date.now()}`;
+						const out = fs.createWriteStream(tmp, { mode: 0o755 });
+						res.pipe(out);
+						out.on("finish", () => {
+							out.close(() => {
+								try {
+									fs.chmodSync(tmp, 0o755);
+									fs.renameSync(tmp, dest);
+									resolve({ ok: true, path: dest });
+								} catch (err) {
+									resolve({ ok: false, error: String(err.message || err) });
+								}
+							});
+						});
+						out.on("error", (err) => {
+							resolve({ ok: false, error: String(err.message || err) });
+						});
+					},
+				);
+				req.on("error", (err) =>
+					resolve({ ok: false, error: String(err.message || err) }),
+				);
+				req.setTimeout(120000, () => {
+					try {
+						req.destroy(new Error("timeout"));
+					} catch {
+						/* settled */
+					}
+				});
+			} catch (err) {
+				resolve({ ok: false, error: String(err.message || err) });
+			}
+		};
+		tryGet(url, 5);
+	});
+}
+
+function enqueueYoutubeJob(kind, url, label) {
+	const jobId = `yt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+	const job = {
+		jobId,
+		kind,
+		url,
+		label: label || url,
+		status: "queued",
+		error: null,
+		files: [],
+	};
+	youtubeJobs.set(jobId, job);
+	youtubeQueue.push({ jobId, kind, url, label: job.label });
+	pumpYoutubeQueue();
+	youtubeBroadcast();
+	return job;
+}
+
+function pumpYoutubeQueue() {
+	if (youtubeInFlight) return;
+	const next = youtubeQueue.shift();
+	if (!next) return;
+	youtubeInFlight = true;
+	const job = youtubeJobs.get(next.jobId);
+	if (job) job.status = "downloading";
+	youtubeBroadcast();
+	runYoutubeJob(next)
+		.then((res) => {
+			const j = youtubeJobs.get(next.jobId);
+			if (j) {
+				j.status = res.ok ? "done" : "error";
+				j.error = res.ok ? null : res.error || "download failed";
+				j.files = res.files || [];
+			}
+		})
+		.catch((err) => {
+			const j = youtubeJobs.get(next.jobId);
+			if (j) {
+				j.status = "error";
+				j.error = String((err && err.message) || err);
+			}
+		})
+		.finally(() => {
+			youtubeInFlight = false;
+			youtubeBroadcast();
+			if (youtubeQueue.length > 0) pumpYoutubeQueue();
+		});
+}
+
+function snapshotStagingFiles(dir) {
+	const before = new Map();
+	try {
+		for (const entry of fs.readdirSync(dir)) {
+			if (!/\.(mp4|mkv|webm|mov|m4v)$/i.test(entry)) continue;
+			try {
+				before.set(entry, fs.statSync(path.join(dir, entry)).mtimeMs);
+			} catch {
+				/* ignore */
+			}
+		}
+	} catch {
+		/* staging may not exist yet */
+	}
+	return before;
+}
+
+function newStagingFiles(dir, before) {
+	const out = [];
+	try {
+		for (const entry of fs.readdirSync(dir)) {
+			if (!/\.(mp4|mkv|webm|mov|m4v)$/i.test(entry)) continue;
+			const full = path.join(dir, entry);
+			try {
+				const st = fs.statSync(full);
+				if (!before.has(entry) || st.mtimeMs > before.get(entry))
+					out.push(full);
+			} catch {
+				/* ignore */
+			}
+		}
+	} catch {
+		/* ignore */
+	}
+	return out.sort();
+}
+
+function runYoutubeJob({ kind, url }) {
+	return new Promise((resolve) => {
+		let cfg;
+		try {
+			cfg = youtube.readYoutubeConfig(readSettings);
+		} catch {
+			cfg = youtube.parseYoutubeConfig(null);
+		}
+		let destDir = null;
+		try {
+			destDir = youtube.stagingDir();
+			fs.mkdirSync(destDir, { recursive: true });
+		} catch (err) {
+			resolve({ ok: false, error: `staging mkdir: ${err.message}` });
+			return;
+		}
+		const archiveFile = youtube.archiveFileFor(destDir);
+		// Channels and playlists are both multi-item feeds (list argv);
+		// only single videos take the --no-playlist path.
+		const args =
+			kind === "video"
+				? youtube.buildVideoArgs({
+						url,
+						destDir,
+						quality: cfg.quality,
+						archiveFile,
+					})
+				: youtube.buildListArgs({
+						url,
+						destDir,
+						quality: cfg.quality,
+						archiveFile,
+						max: cfg.maxPerChannel,
+					});
+		const before = snapshotStagingFiles(destDir);
+		const bin = resolveYtDlpBinary();
+		let child = null;
+		try {
+			const { spawn } = require("child_process");
+			child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
+		} catch (err) {
+			resolve({
+				ok: false,
+				error:
+					err.code === "ENOENT"
+						? "yt-dlp not installed"
+						: String(err.message || err),
+			});
+			return;
+		}
+		let tail = "";
+		const onData = (d) => {
+			tail += String(d);
+			if (tail.length > 8000) tail = tail.slice(-8000);
+		};
+		try {
+			child.stdout.on("data", onData);
+			child.stderr.on("data", onData);
+		} catch {
+			/* ignore */
+		}
+		const timer = setTimeout(
+			() => {
+				try {
+					child.kill("SIGKILL");
+				} catch {
+					/* already exited */
+				}
+			},
+			1000 * 60 * 60,
+		); // 1h hard cap per job
+		child.on("error", (err) => {
+			clearTimeout(timer);
+			resolve({
+				ok: false,
+				error:
+					err.code === "ENOENT"
+						? "yt-dlp not installed"
+						: String(err.message || err),
+			});
+		});
+		child.on("close", async (code) => {
+			clearTimeout(timer);
+			const files = newStagingFiles(destDir, before);
+			if (code !== 0 && files.length === 0) {
+				const hint = tail.trim().split("\n").slice(-3).join(" ").slice(0, 300);
+				resolve({ ok: false, error: hint || `yt-dlp exit ${code}` });
+				return;
+			}
+			if (files.length === 0) {
+				// Archive-skipped (already downloaded) is a success with no files.
+				resolve({ ok: true, files: [] });
+				return;
+			}
+			try {
+				const res = await importPaths(files);
+				// Record videoId metadata from sibling .info.json files.
+				for (const f of files) {
+					try {
+						const base = f.replace(/\.[^.]+$/, "");
+						const infoPath = `${base}.info.json`;
+						if (!fs.existsSync(infoPath)) continue;
+						const info = JSON.parse(fs.readFileSync(infoPath, "utf-8"));
+						if (info && info.id) {
+							const lib = loadLibrary();
+							const idx = lib.sources
+								? lib.sources.findIndex((s) => s === f)
+								: -1;
+							const filename = idx >= 0 ? lib.filenames[idx] : path.basename(f);
+							youtube.recordYoutubeFile({
+								videoId: String(info.id),
+								filename,
+								channel: info.uploader || info.channel || null,
+								pageUrl: info.webpage_url || url,
+								title: info.title || null,
+							});
+						}
+					} catch {
+						/* metadata is best-effort */
+					}
+				}
+				resolve({ ok: true, files, imported: res });
+			} catch (err) {
+				resolve({ ok: false, error: String(err.message || err), files });
+			}
+		});
+	});
+}
+
+function ensureYoutubePollTimer() {
+	if (youtubePollTimer) return;
+	let cfg;
+	try {
+		cfg = youtube.readYoutubeConfig(readSettings);
+	} catch {
+		return;
+	}
+	if (!cfg.enabled || cfg.channels.length === 0) return;
+	const ms = Math.max(1, cfg.pollHours) * 3600 * 1000;
+	youtubePollTimer = setInterval(() => {
+		try {
+			const c = youtube.readYoutubeConfig(readSettings);
+			if (!c.enabled) return;
+			for (const ch of c.channels) {
+				enqueueYoutubeJob(
+					ch.kind === "playlist" ? "playlist" : "channel",
+					ch.url,
+					ch.label,
+				);
+			}
+			const next = youtube.parseYoutubeConfig({ ...c });
+			next.channels = c.channels.map((ch) => ({
+				...ch,
+				lastSync: new Date().toISOString(),
+			}));
+			writeSettings({ youtube: next });
+		} catch {
+			/* polling must never throw */
+		}
+	}, ms);
+	if (youtubePollTimer.unref) youtubePollTimer.unref();
+}
+
+ipcMain.handle("memories:youtube-status", () => youtubeStatus());
+
+ipcMain.handle("memories:youtube-ensure-binary", async () => {
+	if (youtubeBinaryReady()) return { ok: true, skipped: true };
+	let cfg;
+	try {
+		cfg = youtube.readYoutubeConfig(readSettings);
+	} catch {
+		cfg = youtube.parseYoutubeConfig(null);
+	}
+	const res = await downloadYtDlpBinary(cfg.ytDlpVersion);
+	youtubeBroadcast();
+	return res;
+});
+
+ipcMain.handle("memories:youtube-add", async (_event, payload) => {
+	const rawUrl =
+		(payload && (payload.url || payload.channel || payload.input)) || payload;
+	const parsed = youtube.parseYouTubeInput(
+		typeof rawUrl === "string" ? rawUrl : "",
+	);
+	if (parsed.kind !== "channel" && parsed.kind !== "playlist") {
+		return { ok: false, error: "not a channel or playlist URL" };
+	}
+	let cfg = youtube.readYoutubeConfig(readSettings);
+	if (cfg.channels.some((c) => c.url === parsed.url)) {
+		return { ok: true, skipped: true, channels: cfg.channels };
+	}
+	const label =
+		payload && typeof payload.label === "string" && payload.label.trim()
+			? payload.label.trim().slice(0, 120)
+			: parsed.url;
+	const next = youtube.parseYoutubeConfig({
+		...cfg,
+		channels: [
+			...cfg.channels,
+			{ url: parsed.url, kind: parsed.kind, label, lastSync: null },
+		],
+	});
+	writeSettings({ youtube: next });
+	enqueueYoutubeJob(parsed.kind, parsed.url, label);
+	ensureYoutubePollTimer();
+	return { ok: true, channels: next.channels };
+});
+
+ipcMain.handle("memories:youtube-remove", async (_event, url) => {
+	const target = typeof url === "string" ? url : url && url.url;
+	if (!target) return { ok: false };
+	let cfg = youtube.readYoutubeConfig(readSettings);
+	const next = youtube.parseYoutubeConfig({
+		...cfg,
+		channels: cfg.channels.filter((c) => c.url !== target),
+	});
+	writeSettings({ youtube: next });
+	return { ok: true, channels: next.channels };
+});
+
+ipcMain.handle("memories:youtube-download", async (_event, payload) => {
+	const rawUrl = (payload && (payload.url || payload.input)) || payload;
+	const str = typeof rawUrl === "string" ? rawUrl : "";
+	const parsed = youtube.parseYouTubeInput(str);
+	if (parsed.kind !== "video") {
+		// Channel/playlist URLs route to the subscription path (sync now).
+		if (parsed.kind === "channel" || parsed.kind === "playlist") {
+			const job = enqueueYoutubeJob(parsed.kind, parsed.url, parsed.url);
+			return { ok: true, jobId: job.jobId };
+		}
+		return { ok: false, error: "not a YouTube video URL" };
+	}
+	const job = enqueueYoutubeJob("video", parsed.url, parsed.url);
+	return { ok: true, jobId: job.jobId };
+});
+
+ipcMain.handle("memories:youtube-set-config", async (_event, patch) => {
+	const cur = youtube.readYoutubeConfig(readSettings);
+	const next = youtube.parseYoutubeConfig({
+		...cur,
+		...(patch && typeof patch === "object" ? patch : {}),
+	});
+	writeSettings({ youtube: next });
+	ensureYoutubePollTimer();
+	youtubeBroadcast();
+	return { ok: true, config: next };
+});
+
+ipcMain.handle("memories:youtube-files", async () => {
+	try {
+		const meta = youtube.loadYoutubeMeta();
+		return { ok: true, files: youtube.youtubeFilenames(), meta };
+	} catch (err) {
+		return { ok: false, error: String(err.message || err) };
+	}
+});
+
 // C-01: runE2E lives in scripts/e2e/e2e.js (required at dispatch).
 // cosine stays here: shared by runE2E (via ctx) and the migrate dispatch.
 
@@ -8787,19 +9305,19 @@ if (!gotTheLock) {
 				} else if (process.env.ELECTRON_SMOKE_PHASE4 === "1") {
 					console.log("[phase4] starting");
 					const { runPhase4DeepTest } = require("./scripts/e2e/phase4.js");
-				await runPhase4DeepTest({
-					app,
-					BrowserWindow,
-					importPaths,
-					loadLibrary,
-					loadSegments,
-					readVideoQuality,
-					writeSettings,
-					removeLibraryRow,
-					saveLibrary,
-					backfillEnrichment,
-					reembedToModel,
-					migrationSettled,
+					await runPhase4DeepTest({
+						app,
+						BrowserWindow,
+						importPaths,
+						loadLibrary,
+						loadSegments,
+						readVideoQuality,
+						writeSettings,
+						removeLibraryRow,
+						saveLibrary,
+						backfillEnrichment,
+						reembedToModel,
+						migrationSettled,
 						suspectedTruncatedVideos,
 						segmentsBinFileFor,
 						segmentsMetaFileFor,

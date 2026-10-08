@@ -392,9 +392,12 @@ console.log("[pump-enrichment] poison-pill parking (2026-09-26 loop fix)");
 		alreadyCovered: false,
 	};
 
-	check("final all-skipped chunk parks (no entry → backfill would loop)", () => {
-		assert.equal(shouldParkEnrichment(parked), true);
-	});
+	check(
+		"final all-skipped chunk parks (no entry → backfill would loop)",
+		() => {
+			assert.equal(shouldParkEnrichment(parked), true);
+		},
+	);
 
 	check("non-final chunk never parks (job still advancing)", () => {
 		assert.equal(shouldParkEnrichment({ ...parked, done: false }), false);
@@ -415,9 +418,12 @@ console.log("[pump-enrichment] poison-pill parking (2026-09-26 loop fix)");
 		);
 	});
 
-	check("failed reply (!ok) never parks (transient, retry path owns it)", () => {
-		assert.equal(shouldParkEnrichment({ ...parked, ok: false }), false);
-	});
+	check(
+		"failed reply (!ok) never parks (transient, retry path owns it)",
+		() => {
+			assert.equal(shouldParkEnrichment({ ...parked, ok: false }), false);
+		},
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -432,7 +438,10 @@ console.log("[pump-enrichment] parseRawFrameSize SAR tolerance (root cause)");
 		"  Stream #0:0(eng): Video: rawvideo (RGB[24] / 0x18424752), rgb24(pc, gbr/bt709/bt709, progressive), 480x270, q=2-31, 25 fps";
 
 	check("bracket form still parses (96x96 [SAR 1:1 DAR 1:1])", () => {
-		assert.deepEqual(parseRawFrameSize(bracket, 480), { width: 96, height: 96 });
+		assert.deepEqual(parseRawFrameSize(bracket, 480), {
+			width: 96,
+			height: 96,
+		});
 	});
 
 	check("SAR-less comma form parses (480x270, q= — the poison pill)", () => {

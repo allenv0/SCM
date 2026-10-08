@@ -37,7 +37,9 @@ export default function CrtTv({ channel, onChannel }: CrtTvProps) {
 	// Tracks the live channel for the first-reveal callback below, so the
 	// ticker always opens on the channel actually showing — not a stale "A".
 	const channelRef = useRef(channel);
-	channelRef.current = channel;
+	useEffect(() => {
+		channelRef.current = channel;
+	}, [channel]);
 
 	const later = useCallback((fn: () => void, ms: number) => {
 		const id = window.setTimeout(fn, ms);
@@ -48,7 +50,9 @@ export default function CrtTv({ channel, onChannel }: CrtTvProps) {
 	useEffect(() => () => timers.current.forEach((t) => clearTimeout(t)), []);
 
 	const channelConfig = useCallback((id: string) => {
-		return ONBOARDING_CHANNELS.find((c) => c.id === id) ?? ONBOARDING_CHANNELS[0];
+		return (
+			ONBOARDING_CHANNELS.find((c) => c.id === id) ?? ONBOARDING_CHANNELS[0]
+		);
 	}, []);
 
 	const setTickerContent = useCallback(

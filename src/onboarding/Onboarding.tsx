@@ -2,10 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import CrtTv from "./CrtTv";
-import {
-	ONBOARDING_CHANNELS,
-	ONBOARDING_HEADLINE,
-} from "./onboarding-data";
+import { ONBOARDING_CHANNELS, ONBOARDING_HEADLINE } from "./onboarding-data";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import "./onboarding.css";
 
@@ -113,7 +110,11 @@ export default function Onboarding({ onDone, onImport }: OnboardingProps) {
 				</div>
 
 				<div className="onb-nav">
-					<button type="button" className="onb-btn onb-btn--ghost" onClick={onDone}>
+					<button
+						type="button"
+						className="onb-btn onb-btn--ghost"
+						onClick={onDone}
+					>
 						Skip tour
 					</button>
 					<div className="onb-nav__main">

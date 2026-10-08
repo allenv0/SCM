@@ -959,7 +959,10 @@ if (process.parentPort) {
 		// Lifecycle controls bypass the embed queue: a hung enrich-video
 		// holds queueBusy for minutes, and a kill-ffmpeg queued behind it
 		// would never run in time to kill the hung ffmpeg.
-		if (message && (message.type === "kill-ffmpeg" || message.type === "shutdown")) {
+		if (
+			message &&
+			(message.type === "kill-ffmpeg" || message.type === "shutdown")
+		) {
 			void handleMessage(message);
 			return;
 		}

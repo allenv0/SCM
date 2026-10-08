@@ -3,13 +3,14 @@
 // here so storage parsing and visibility filtering are unit-testable
 // without a DOM.
 //
-// Today the toggleable set is Screenshots + Email (both default ON, so
-// existing installs see no change). Future smart tabs (Documents,
+// Today the toggleable set is Screenshots + Email + YouTube (all default
+// ON, so existing installs see no change). Future smart tabs (Documents,
 // Receipts, …) join by adding one entry + one detector — the tab bar,
 // ghost-tab guard, reserved-name guard, and Settings UI all read this
 // registry, so no per-tab wiring is needed.
 
-export type BuiltInTabId = "All" | "Videos" | "Screenshots" | "Email";
+export type BuiltInTabId =
+	"All" | "Videos" | "Screenshots" | "Email" | "YouTube";
 
 export type BuiltInTabKind = "all" | "exclusive" | "overlapping";
 
@@ -30,6 +31,7 @@ export const BUILT_IN_TABS: readonly BuiltInTabId[] = [
 	"Videos",
 	"Screenshots",
 	"Email",
+	"YouTube",
 ] as const;
 
 export const BUILT_IN_TAB_INFO: Record<BuiltInTabId, BuiltInTabInfo> = {
@@ -63,6 +65,15 @@ export const BUILT_IN_TAB_INFO: Record<BuiltInTabId, BuiltInTabInfo> = {
 		label: "Email",
 		blurb:
 			"Photos whose visible OCR text contains an email address. Overlapping view — items keep their category too.",
+		alwaysOn: false,
+		defaultOn: true,
+		kind: "overlapping",
+	},
+	YouTube: {
+		id: "YouTube",
+		label: "YouTube",
+		blurb:
+			"Videos downloaded with yt-dlp. Overlapping view — items stay under Videos too.",
 		alwaysOn: false,
 		defaultOn: true,
 		kind: "overlapping",

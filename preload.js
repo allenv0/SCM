@@ -81,6 +81,18 @@ contextBridge.exposeInMainWorld("memories", {
 	downloadLlm: (target) => ipcRenderer.invoke("memories:llm-download", target),
 	askScm: (payload) => ipcRenderer.invoke("memories:ask", payload),
 	stopAsk: (reqId) => ipcRenderer.send("memories:ask-stop", { reqId }),
+	getYoutubeStatus: () => ipcRenderer.invoke("memories:youtube-status"),
+	ensureYoutubeBinary: () =>
+		ipcRenderer.invoke("memories:youtube-ensure-binary"),
+	addYoutubeChannel: (payload) =>
+		ipcRenderer.invoke("memories:youtube-add", payload),
+	removeYoutubeChannel: (url) =>
+		ipcRenderer.invoke("memories:youtube-remove", url),
+	downloadYoutube: (payload) =>
+		ipcRenderer.invoke("memories:youtube-download", payload),
+	setYoutubeConfig: (patch) =>
+		ipcRenderer.invoke("memories:youtube-set-config", patch),
+	getYoutubeFiles: () => ipcRenderer.invoke("memories:youtube-files"),
 	onAskEvidence: (callback) => {
 		const listener = (_event, payload) => callback(payload);
 		ipcRenderer.on("memories:ask-evidence", listener);

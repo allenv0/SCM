@@ -66,6 +66,7 @@ import EmbeddingVersionsPanel from "./EmbeddingVersionsPanel";
 import MenuBarPanel from "./MenuBarPanel";
 import LibrarySection from "./LibrarySection";
 import AskPanel from "./AskPanel";
+import YoutubePanel from "./YoutubePanel";
 import {
 	BUILT_IN_TABS,
 	BUILT_IN_TAB_INFO,
@@ -162,6 +163,8 @@ interface SettingsSheetProps {
 	enabledTabs?: Set<string>;
 	/** Toggle one built-in tab on/off (persists via the hook). */
 	onTabToggle?: (id: string, on: boolean) => void;
+	/** Jump to a YouTube interest: close Settings and run the saved search. */
+	onOpenYoutubeInterest?: (prompt: string, mode: string) => void;
 }
 
 // Appearance options in display order. The machine metaphor: daylight
@@ -199,6 +202,7 @@ type SectionId =
 	| "smart-tabs"
 	| "photo"
 	| "video"
+	| "youtube"
 	| "ai"
 	| "shortcut"
 	| "keyboard"
@@ -253,6 +257,13 @@ const SECTIONS: {
 		description: "Scene density & speech",
 		icon: IconMovie,
 		tile: "from-violet-500 to-purple-700",
+	},
+	{
+		id: "youtube",
+		label: "YouTube",
+		description: "Subscriptions & interests",
+		icon: IconMovie,
+		tile: "from-rose-400 to-red-600",
 	},
 	{
 		id: "ai",
@@ -322,6 +333,7 @@ export default function SettingsSheet({
 	onResetViewShortcuts,
 	enabledTabs = readStoredEnabledTabs(),
 	onTabToggle,
+	onOpenYoutubeInterest,
 }: SettingsSheetProps) {
 	const settingsDialogRef = useRef<HTMLDivElement>(null);
 	useFocusTrap(settingsDialogRef, open);
@@ -924,9 +936,8 @@ export default function SettingsSheet({
 												Onboarding Tour
 											</h3>
 											<p className="mt-1 text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-												Replay the first-run CRT tour — the three demo
-												channels that introduce photo search, OCR, and
-												smart tabs.
+												Replay the first-run CRT tour — the three demo channels
+												that introduce photo search, OCR, and smart tabs.
 											</p>
 											<button
 												type="button"
@@ -1572,6 +1583,21 @@ export default function SettingsSheet({
 										</div>
 									)}
 								</div>
+							</div>
+						)}
+
+						{activeSection === "youtube" && (
+							<div className="mx-auto max-w-[600px]">
+								<YoutubePanel
+									onNotify={(message) => onNotify(message, "default")}
+									onOpenInterest={(prompt, mode) => {
+										if (onOpenYoutubeInterest) {
+											onOpenYoutubeInterest(prompt, mode);
+										} else {
+											onClose();
+										}
+									}}
+								/>
 							</div>
 						)}
 

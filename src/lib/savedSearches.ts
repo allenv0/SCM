@@ -17,6 +17,9 @@ export interface SavedTab {
 	readonly label: string;
 	/** The search mode (Files/Scenes/Dialogue/OCR) this tab was saved in. */
 	readonly mode: SavedTabMode;
+	/** YouTube agent: when true this saved search is an "interest" that
+	 *  auto-matches newly downloaded videos. Absent = false (back-compat). */
+	readonly watch?: boolean;
 }
 
 export function normalizePrompt(p: string): string {
@@ -25,7 +28,8 @@ export function normalizePrompt(p: string): string {
 
 // Parse one persisted entry, backfilling defaults for every generation of
 // the format: bare prompt strings (label = prompt, mode = files) and
-// { prompt, label } pairs missing the mode.
+// { prompt, label } pairs missing the mode. `watch` (YouTube interests)
+// backfills to false.
 function parseSavedTab(entry: unknown): SavedTab | null {
 	if (typeof entry === "string") {
 		const p = normalizePrompt(entry);
@@ -41,7 +45,10 @@ function parseSavedTab(entry: unknown): SavedTab | null {
 		e.mode === "scenes" || e.mode === "ocr" || e.mode === "dialogue"
 			? e.mode
 			: "files";
-	return { prompt: p, label: l || p, mode };
+	const watch = e.watch === true;
+	return watch
+		? { prompt: p, label: l || p, mode, watch }
+		: { prompt: p, label: l || p, mode };
 }
 
 export function loadSavedSearches(): SavedTab[] {
@@ -79,13 +86,17 @@ export function addSavedSearch(
 	label?: string,
 	mode: SavedTabMode = "files",
 	max = MAX_SAVED_TABS,
+	watch = false,
 ): SavedTab[] {
 	const p = normalizePrompt(prompt);
 	if (!p || isSaved(p, list)) return list;
 	const l = normalizePrompt(label ?? "") || p;
 	const m: SavedTabMode =
 		mode === "scenes" || mode === "ocr" || mode === "dialogue" ? mode : "files";
-	return [...list, { prompt: p, label: l, mode: m }].slice(-max);
+	const entry: SavedTab = watch
+		? { prompt: p, label: l, mode: m, watch: true as const }
+		: { prompt: p, label: l, mode: m };
+	return [...list, entry].slice(-max);
 }
 
 // Remove a saved search (by prompt — the tab's identity). Returns the new
@@ -103,7 +114,7 @@ export function removeSavedSearch(
 export function updateSavedSearch(
 	list: SavedTab[],
 	prompt: string,
-	patch: { label?: string; mode?: SavedTabMode },
+	patch: { label?: string; mode?: SavedTabMode; watch?: boolean },
 ): SavedTab[] {
 	const p = normalizePrompt(prompt).toLowerCase();
 	return list.map((t) => {
@@ -118,8 +129,17 @@ export function updateSavedSearch(
 			patch.mode === "dialogue"
 				? patch.mode
 				: "files";
-		return { ...t, label, mode };
+		if (patch.watch === undefined) return { ...t, label, mode };
+		if (patch.watch) return { ...t, label, mode, watch: true as const };
+		const { watch: _omit, ...rest } = t;
+		void _omit;
+		return { ...rest, label, mode };
 	});
+}
+
+/** Saved searches flagged as YouTube interests (watch:true). */
+export function watchedInterests(list: SavedTab[]): SavedTab[] {
+	return list.filter((t) => t.watch === true);
 }
 
 export function savedTabLabel(label: string, max = 24): string {

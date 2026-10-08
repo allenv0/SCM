@@ -6,6 +6,7 @@ import {
 	normalizePrompt,
 	removeSavedSearch,
 	updateSavedSearch,
+	watchedInterests,
 } from "../src/lib/savedSearches";
 
 // bun:test has no DOM localStorage — minimal in-memory stub (the module
@@ -64,6 +65,18 @@ test("persisted dialogue tabs load back with mode intact", () => {
 	expect(loaded.find((t) => t.prompt === "sunset")?.mode).toBe("scenes");
 	expect(loaded.find((t) => t.prompt === "bare prompt")?.mode).toBe("files");
 	expect(loaded.find((t) => t.prompt === "x")?.mode).toBe("files");
+	localStorage.removeItem("memories-saved-tabs");
+});
+
+test("watch flag round-trips and filters interests", () => {
+	const list = addSavedSearch([], "sourdough", "Sourdough", "scenes", 20, true);
+	expect(list[0].watch).toBe(true);
+	expect(watchedInterests(list)).toHaveLength(1);
+	const unwatched = updateSavedSearch(list, "sourdough", { watch: false });
+	expect(unwatched[0].watch).toBeUndefined();
+	expect(watchedInterests(unwatched)).toHaveLength(0);
+	localStorage.setItem("memories-saved-tabs", JSON.stringify(list));
+	expect(loadSavedSearches()[0].watch).toBe(true);
 	localStorage.removeItem("memories-saved-tabs");
 });
 

@@ -222,6 +222,20 @@ export type StatusPayload =
 			type: "open-settings";
 			/** Sent by the menu-bar tray ("Open Settings…"): the window is
 			 *  already focused — just open the Settings sheet. */
+	  }
+	| {
+			type: "youtube";
+			phase: "downloading" | "idle";
+			pending: number;
+			active?: boolean;
+			jobs?: YoutubeJob[];
+			channels?: YoutubeSubscription[];
+			quality?: string;
+			enabled?: boolean;
+			maxPerChannel?: number;
+			pollHours?: number;
+			storageCapGB?: number;
+			binaryReady?: boolean;
 	  };
 
 /** AI insights for a single photo (what the AI "sees"). */
@@ -230,6 +244,41 @@ export interface AiInsightsConcept {
 	readonly query: string;
 	/** How strongly the image matches (0–1). */
 	readonly score: number;
+}
+
+/** YouTube agent job row (main-process download queue). */
+export interface YoutubeJob {
+	readonly jobId: string;
+	readonly kind: string;
+	readonly url: string;
+	readonly label: string;
+	readonly status: string;
+	readonly error?: string | null;
+	readonly files?: string[];
+}
+
+/** A followed YouTube source: a channel or a playlist, synced the same way. */
+export interface YoutubeSubscription {
+	readonly url: string;
+	readonly kind?: "channel" | "playlist";
+	readonly label: string;
+	readonly lastSync: string | null;
+}
+
+/** YouTube agent status snapshot (memories:youtube-status). */
+export interface YoutubeStatus {
+	readonly type: "youtube";
+	readonly phase: "downloading" | "idle";
+	readonly pending: number;
+	readonly active?: boolean;
+	readonly jobs?: YoutubeJob[];
+	readonly channels?: YoutubeSubscription[];
+	readonly quality?: string;
+	readonly enabled?: boolean;
+	readonly maxPerChannel?: number;
+	readonly pollHours?: number;
+	readonly storageCapGB?: number;
+	readonly binaryReady?: boolean;
 }
 
 /** Ask-mode LLM config (settings.json `llm`, read back over the bridge). */
@@ -452,9 +501,7 @@ interface MemoriesBridge {
 	revealInFinder(filename: string): Promise<{ ok: boolean }>;
 	/** Open a library file in the OS default app (full-file playback for
 	 *  searchable-only video containers the in-app player cannot demux). */
-	openExternal?(
-		filename: string,
-	): Promise<{ ok: boolean; error?: string }>;
+	openExternal?(filename: string): Promise<{ ok: boolean; error?: string }>;
 	deleteMemory(filename: string): Promise<{ ok: boolean }>;
 	/** Pin a photo into (or out of) the Screenshots tab. The decision is
 	 *  keyed by content hash in main and beats every automatic signal;
@@ -680,6 +727,54 @@ interface MemoriesBridge {
 	/** Abort an in-flight Ask generation (the sidecar fetch stops; the
 	 *  invoke resolves with reason "stopped" + partial text). Fire-and-forget. */
 	stopAsk(reqId: number): void;
+	/** YouTube agent: current download queue + channel config. */
+	getYoutubeStatus(): Promise<YoutubeStatus>;
+	/** Fetch the pinned yt-dlp binary on first use. */
+	ensureYoutubeBinary(): Promise<{
+		ok: boolean;
+		skipped?: boolean;
+		error?: string;
+	}>;
+	/** Follow a channel or playlist (starts a sync). */
+	addYoutubeChannel(payload: { url: string; label?: string }): Promise<{
+		ok: boolean;
+		channels?: YoutubeSubscription[];
+		error?: string;
+	}>;
+	/** Unfollow a channel or playlist (downloads stay in the library). */
+	removeYoutubeChannel(url: string): Promise<{
+		ok: boolean;
+		channels?: YoutubeSubscription[];
+	}>;
+	/** Download one video, or sync one channel/playlist URL now. */
+	downloadYoutube(payload: { url: string }): Promise<{
+		ok: boolean;
+		jobId?: string;
+		error?: string;
+	}>;
+	/** Save YouTube agent config (quality, caps, enabled). */
+	setYoutubeConfig(patch: {
+		enabled?: boolean;
+		quality?: string;
+		maxPerChannel?: number;
+		pollHours?: number;
+		storageCapGB?: number;
+	}): Promise<{ ok: boolean; config?: unknown; error?: string }>;
+	/** Filenames imported from YouTube + their metadata. */
+	getYoutubeFiles(): Promise<{
+		ok: boolean;
+		files?: string[];
+		meta?: Record<
+			string,
+			{
+				filename: string;
+				channel?: string | null;
+				pageUrl?: string | null;
+				title?: string | null;
+			}
+		>;
+		error?: string;
+	}>;
 	/** Evidence-first event: chips + grid populate while the answer streams. */
 	onAskEvidence(
 		callback: (payload: AskEvidenceEvent & { stats?: AskStats }) => void,

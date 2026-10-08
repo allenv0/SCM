@@ -122,7 +122,10 @@ async function main() {
 	const cacheDir = path.join(tmpDir, "cache");
 	fs.mkdirSync(cacheDir, { recursive: true });
 
-	let film = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : null;
+	let film =
+		process.argv[2] && !process.argv[2].startsWith("--")
+			? process.argv[2]
+			: null;
 	let meta;
 	if (!film) {
 		const out = path.join(tmpDir, "fixture-6cut-720p.mp4");
@@ -134,7 +137,13 @@ async function main() {
 		);
 	} else {
 		const st = fs.statSync(film);
-		meta = { path: film, seconds: null, cutCount: null, expectedBounds: null, bytes: st.size };
+		meta = {
+			path: film,
+			seconds: null,
+			cutCount: null,
+			expectedBounds: null,
+			bytes: st.size,
+		};
 	}
 	if (fixtureOnly) {
 		console.log(film);
@@ -239,12 +248,24 @@ async function main() {
 		cacheDir,
 	};
 	const cold0 = Date.now();
-	const cold = await videoUtils.detectScenes(ffmpeg, film, null, null, cacheOpts);
+	const cold = await videoUtils.detectScenes(
+		ffmpeg,
+		film,
+		null,
+		null,
+		cacheOpts,
+	);
 	const coldMs = Date.now() - cold0;
 	console.log(`${coldMs}ms cached=${cold.cached}`);
 	process.stdout.write("[bench] software-180-cache hot … ");
 	const hot0 = Date.now();
-	const hot = await videoUtils.detectScenes(ffmpeg, film, null, null, cacheOpts);
+	const hot = await videoUtils.detectScenes(
+		ffmpeg,
+		film,
+		null,
+		null,
+		cacheOpts,
+	);
 	const hotMs = Date.now() - hot0;
 	console.log(`${hotMs}ms cached=${hot.cached}`);
 	results.push({
@@ -278,9 +299,7 @@ async function main() {
 			wallsMs: r.walls,
 			engine: r.result?.engine,
 			boundaries: r.boundaries,
-			parity: base
-				? planParity(base.boundaries, r.boundaries, 1.0)
-				: null,
+			parity: base ? planParity(base.boundaries, r.boundaries, 1.0) : null,
 			speedupVsBaseline: base && r.p50 > 0 ? base.p50 / r.p50 : null,
 		})),
 	};
@@ -288,9 +307,7 @@ async function main() {
 	console.log("\n=== summary (p50 vs software-baseline) ===");
 	for (const s of report.strategies) {
 		const sp =
-			s.speedupVsBaseline != null
-				? `${s.speedupVsBaseline.toFixed(2)}x`
-				: "—";
+			s.speedupVsBaseline != null ? `${s.speedupVsBaseline.toFixed(2)}x` : "—";
 		const miss = s.parity ? s.parity.missing.length : "—";
 		const extra = s.parity ? s.parity.extra.length : "—";
 		console.log(

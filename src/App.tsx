@@ -684,6 +684,7 @@ export default function App() {
 				onResetViewShortcuts={resetViewShortcuts}
 				enabledTabs={enabledTabs}
 				onTabToggle={setTabEnabled}
+				onOpenYoutubeInterest={() => setSettingsOpen(false)}
 				onImport={() => pickPhotos()}
 				onNotify={(message, tone) =>
 					setToast({
