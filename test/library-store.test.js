@@ -115,6 +115,48 @@ const MODEL = "test-model";
 		"loading or startup maintenance must not overwrite the old index before re-embedding succeeds",
 	);
 
+	// Persist-drain semantics (quitSmoke + will-quit rely on it; the
+	// warm→cold smoke caught stranded saves): fire several saves WITHOUT
+	// awaiting, drain via the enqueuePersist noop, then the on-disk pair
+	// must reflect every save — bin header and meta total agree, every
+	// offset lands inside the bin, no .tmp litter left behind.
+	{
+		const DRAIN_MODEL = "drain-test-model";
+		const dc = store.loadSegments(DRAIN_MODEL);
+		dc.loaded = true;
+		dc.dim = 4;
+		dc.rows = [];
+		dc.videos = new Map();
+		for (let round = 0; round < 3; round++) {
+			const base = dc.rows.length;
+			const segsArr = [];
+			for (let i = 0; i < 5; i++) {
+				dc.rows.push(new Float32Array([round, i, 0, 1]));
+				segsArr.push({ t: i, dur: 1, off: base + i, n: 1 });
+			}
+			dc.videos.set(`clip-${round}.mp4`, segsArr);
+			store.saveSegments(); // deliberately unawaited: the drain must cover it
+		}
+		await store.enqueuePersist(() => {});
+		const binFile = store.segmentsBinFileFor(DRAIN_MODEL);
+		const bin = fs.readFileSync(binFile);
+		const h = new Int32Array(bin.buffer, bin.byteOffset, 2);
+		assert.equal(h[0], 15, "drained bin holds all three saves");
+		store.resetLibraryCaches();
+		const re = store.loadSegments(DRAIN_MODEL);
+		assert.equal(re.videos.size, 3, "drained meta holds all three clips");
+		const offs = [...re.videos.values()].flat().map((s) => s.off);
+		assert.equal(new Set(offs).size, 15, "offsets unique after drain");
+		assert.ok(
+			offs.every((o) => o >= 0 && o < h[0]),
+			"every offset lands inside the drained bin",
+		);
+		const tmps = fs
+			.readdirSync(path.join(dir, "library"))
+			.filter((f) => f.includes(".tmp-"));
+		assert.deepEqual(tmps, [], "no tmp litter after drained saves");
+	}
+
 	console.log("library-store: all assertions passed");
 })().catch((err) => {
 	console.error(err);

@@ -374,7 +374,11 @@ async function runE2E(ctx) {
 				VIDEO_EXTENSIONS.has(path.extname(n).toLowerCase()),
 			);
 			const metaFile = segmentsMetaFileFor(loadLibrary().modelId);
-			const deadline = Date.now() + 60000;
+			// Five videos (four container variants) enrich serially through
+			// ffmpeg + fp32 CPU embeds: ~130s observed on a loaded CI
+			// runner, so the deadline must clear that with headroom. A
+			// genuinely stuck enrichment still times out and fails loudly.
+			const deadline = Date.now() + 180000;
 			let meta = null;
 			while (Date.now() < deadline) {
 				try {

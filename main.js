@@ -7531,6 +7531,23 @@ async function versionsFlush() {
 	await enqueuePersist(() => {});
 }
 
+// Drain every save queued so far (same FIFO). Awaiting the returned
+// promise guarantees all saves enqueued BEFORE the call have landed;
+// the cap keeps a stuck fsync from hanging quit/CI forever.
+async function drainPersistQueue(timeoutMs) {
+	await Promise.race([
+		(async () => {
+			await saveLibrary();
+			await saveSegments();
+			await saveTranscripts();
+			await enqueuePersist(() => {});
+		})(),
+		new Promise((_, reject) =>
+			setTimeout(() => reject(new Error("persist drain timeout")), timeoutMs),
+		),
+	]);
+}
+
 function versionsSettingsSummary() {
 	let videoQuality = null;
 	let whisperModel = null;
@@ -8793,10 +8810,21 @@ if (!gotTheLock) {
 	// Smoke-mode teardown: app.quit() does not propagate process.exitCode
 	// (a failed suite still exited 0, so the battery reported ALL PASSED
 	// with a failure inside). Capture the code and exit explicitly —
-	// passing suites are unaffected (code 0 either way).
+	// passing suites are unaffected (code 0 either way). Drain the persist
+	// queue first: saves are async (serial queue + fsync) and a blind
+	// 1500ms exit stranded the warm run's last saves on loaded runners,
+	// failing the cold-restart suite on stale bins. The cap keeps a stuck
+	// fsync from hanging CI forever.
 	function quitSmoke() {
 		const code = process.exitCode ?? 0;
-		setTimeout(() => app.exit(code), 1500);
+		void (async () => {
+			try {
+				await drainPersistQueue(60000);
+			} catch {
+				/* exit with the suite's code regardless */
+			}
+			app.exit(code);
+		})();
 	}
 	app.whenReady().then(async () => {
 		loadLibrary();
@@ -9068,6 +9096,11 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			// A mode that ran must not fall through into the generic
+			// ELECTRON_SMOKE probe below: quitSmoke exits the app, and the
+			// probe would race app.exit against a dying window
+			// ("Object has been destroyed"). Each mode owns its quit.
+			return;
 		}
 
 		// Headless smoke mode: ELECTRON_SMOKE=1 verifies boot + protocol +
@@ -9084,6 +9117,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_REIMPORT) {
@@ -9096,6 +9130,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_WATCHED) {
@@ -9125,6 +9160,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_FAILCACHE) {
@@ -9142,6 +9178,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_RENAMEDEDUPE) {
@@ -9160,6 +9197,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_OCR_HIGHLIGHT) {
@@ -9174,6 +9212,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_UI_REVIEW) {
@@ -9186,6 +9225,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_SEARCH_MATRIX) {
@@ -9200,6 +9240,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_PERF) {
@@ -9223,6 +9264,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_GRID) {
@@ -9236,6 +9278,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_MIGRATE) {
@@ -9262,6 +9305,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE_ASK) {
@@ -9275,6 +9319,7 @@ if (!gotTheLock) {
 				process.exitCode = 1;
 			}
 			quitSmoke();
+			return;
 		}
 
 		if (process.env.ELECTRON_SMOKE === "1") {
@@ -9441,7 +9486,35 @@ if (!gotTheLock) {
 		}
 	});
 
-	app.on("will-quit", () => {
+	// will-quit drains the async persist queue before the process exits:
+	// an orderly quit must not strand queued saves (the warm→cold smoke
+	// caught exactly this: unflushed bins on relaunch). First entry stops
+	// every save source synchronously (workers, watchers), drains with a
+	// cap so a stuck fsync can never hang quit, then quits for real; the
+	// second entry runs nothing (cleanup already ran). Tray-hides never
+	// reach here (no isQuitting, no will-quit), so hiding stays instant.
+	let quitDraining = false;
+	let quitDrained = false;
+	app.on("will-quit", (e) => {
+		if (!quitDrained) {
+			e.preventDefault();
+			if (quitDraining) return; // re-entry while draining: wait for it
+			quitDraining = true;
+			runWillQuitCleanup();
+			void (async () => {
+				try {
+					await drainPersistQueue(10000);
+				} catch {
+					/* quit with what's flushed */
+				}
+				quitDrained = true;
+				app.quit();
+			})();
+			return;
+		}
+	});
+
+	function runWillQuitCleanup() {
 		unregisterCurrentShortcut();
 		// Stop the watched-folder watchers + poll.
 		stopWatchedFolderWatchers();
@@ -9509,7 +9582,7 @@ if (!gotTheLock) {
 		} catch {
 			/* already gone */
 		}
-	});
+	}
 
 	app.on("window-all-closed", () => {
 		// In menu-bar-only mode there is nothing to quit to: the tray icon
