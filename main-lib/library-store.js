@@ -489,13 +489,30 @@ function enqueuePersist(fn) {
 async function writeFileAtomic(file, data) {
 	const tmp = `${file}.tmp-${process.pid}-${++persistSeq}`;
 	const fd = await fs.promises.open(tmp, "w");
+	let wrote = false;
 	try {
 		await fd.write(data);
 		await fd.sync();
-	} finally {
 		await fd.close();
+		await fs.promises.rename(tmp, file);
+		wrote = true;
+	} finally {
+		if (!wrote) {
+			try {
+				await fd.close();
+			} catch {
+				/* already closed */
+			}
+			// Never litter zero-byte temps on a failed write (fd.write
+			// throws first under memory pressure): sweeps and the M-04
+			// no-leftovers guard assume a tmp means a write in flight.
+			try {
+				await fs.promises.unlink(tmp);
+			} catch {
+				/* already gone */
+			}
+		}
 	}
-	await fs.promises.rename(tmp, file);
 }
 
 // The encoded bin payloads are served to the renderer on every reload; the

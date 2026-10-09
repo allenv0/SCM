@@ -137,11 +137,27 @@ async function runPerfGridTest(ctx) {
 	);
 
 	await checkAsync("scroll span is stable (no append-growth)", async () => {
-		const h1 = await scrollH();
+		// The span is an estimate that converges as rows mount and measure
+		// (thumbs/fonts settle async): settle on consecutive identical reads
+		// first, then allow a small drift band. Append-growth — the real
+		// enemy — adds whole windows of rows (tens of thousands of px),
+		// orders of magnitude past this band.
+		let last = -1;
+		let steady = 0;
+		const t0 = Date.now();
+		while (Date.now() - t0 < 15000) {
+			await sleep(500);
+			const h = await scrollH();
+			steady = h === last ? steady + 1 : 0;
+			last = h;
+			if (steady >= 3) break;
+		}
+		const h1 = last;
 		console.log(`[grid] scrollHeight: ${h0} -> ${h1}`);
-		if (h1 !== h0) {
+		const tolerance = Math.max(500, Math.round(h0 * 0.001));
+		if (Math.abs(h1 - h0) > tolerance) {
 			throw new Error(
-				`span moved ${h0} -> ${h1} (append-growth, not windowing)`,
+				`span moved ${h0} -> ${h1} (drift ${h1 - h0}px past ${tolerance}px tolerance; append-growth, not windowing)`,
 			);
 		}
 	});

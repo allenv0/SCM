@@ -90,6 +90,25 @@ async function runPhase4DeepTest(ctx) {
 		}
 		throw new Error(`timed out waiting for ${label}`);
 	};
+	// Segment sidecars persist asynchronously (serialized queue with fsync)
+	// while enrichment updates the IN-MEMORY cache synchronously. Any check
+	// that reads the on-disk BIN FILE must wait for the persist queue to
+	// drain first, or it compares current meta against a stale bin (an
+	// offset one past the on-disk header — a test-side race, not product
+	// corruption: the queue is serial and converges). Drain = the bin
+	// header row count has caught up with the in-memory row count.
+	const waitForBinDrain = (modelId, label) =>
+		waitFor(
+			() => {
+				const c = loadSegments(modelId);
+				if (!c.loaded) return false;
+				const bin = fs.readFileSync(segmentsBinFileFor(modelId));
+				const h = new Int32Array(bin.buffer, bin.byteOffset, 2);
+				return h[0] >= c.rows.length;
+			},
+			60000,
+			`segment bin drain (${label})`,
+		);
 	const trayShows = (needle) =>
 		win.webContents.executeJavaScript(`
 			(async () => {
@@ -300,6 +319,9 @@ async function runPhase4DeepTest(ctx) {
 			120000,
 			"long-clip enrichment (18 segments across 2 chunks)",
 		);
+		// The wait above observes the in-memory cache; the bin-file checks
+		// below must observe the drained queue (see waitForBinDrain).
+		await waitForBinDrain(loadLibrary().modelId, "long-clip");
 		const longSegs =
 			loadSegments(loadLibrary().modelId).videos.get("phase4-long-clip.mp4") ||
 			[];
@@ -414,6 +436,9 @@ async function runPhase4DeepTest(ctx) {
 			120000,
 			`long-balanced enrichment (${balBudget} segments across 2 chunks)`,
 		);
+		// Same in-memory/bin race as the multi-chunk block above: the bin
+		// file lags the final chunk's commit on a loaded runner.
+		await waitForBinDrain(loadLibrary().modelId, "long-balanced");
 		const balSegs =
 			loadSegments(loadLibrary().modelId).videos.get(
 				"phase4-long-balanced.mp4",
@@ -798,6 +823,9 @@ async function runPhase4DeepTest(ctx) {
 		})()`,
 	);
 
+	// The meta/bin pair below is read straight from disk: drain first so a
+	// still-queued save can't hand us a mixed-era pair (see waitForBinDrain).
+	await waitForBinDrain(modelId, "sidecar");
 	const c = loadSegments(modelId);
 	const clipSegs = c.videos.get("phase4-clip.mp4") || [];
 	const meta = JSON.parse(

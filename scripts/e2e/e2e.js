@@ -404,7 +404,24 @@ async function runE2E(ctx) {
 			if (missing.length > 0) {
 				throw new Error(`videos missing scene segments: ${missing.join(", ")}`);
 			}
-			const bin = fs.readFileSync(segmentsBinFileFor(loadLibrary().modelId));
+			// The sidecar persists asynchronously (serialized queue with
+			// fsync): the meta file above can be current while the bin file
+			// lags one save behind on a loaded runner. Wait for the bin
+			// header to catch up with the meta total before comparing —
+			// otherwise a stale bin fails a healthy enrichment.
+			const binFile = segmentsBinFileFor(loadLibrary().modelId);
+			const drainDeadline = Date.now() + 60000;
+			for (;;) {
+				const b = fs.readFileSync(binFile);
+				const h = new Int32Array(b.buffer, b.byteOffset, 2);
+				if (h[0] >= (meta.total || 0)) break;
+				if (Date.now() >= drainDeadline) break;
+				await new Promise((r) => setTimeout(r, 500));
+			}
+			// Fresh pair for the strict assert (no commits in flight here:
+			// single-chunk clips, coverage already met).
+			meta = JSON.parse(fs.readFileSync(metaFile, "utf8"));
+			const bin = fs.readFileSync(binFile);
 			const header = new Int32Array(bin.buffer, bin.byteOffset, 2);
 			if (header[0] !== (meta.total || 0)) {
 				throw new Error(
