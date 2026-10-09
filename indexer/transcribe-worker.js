@@ -302,6 +302,44 @@ function capUtteranceText(text) {
 		.slice(0, UTTERANCE_MAX_CHARS);
 }
 
+// One whisper decode with timestamp collapse fallback. The timestamped
+// decode can collapse to EMPTY text + zero chunks on sparse/quiet speech
+// (verified: a 19 s clip with clear speech decodes verbatim without
+// timestamps but empty with return_timestamps:true) while a plain decode
+// of the same samples hears it fine — and an empty result here becomes a
+// permanent transcript gap (never retried). So when the timestamped decode
+// comes back empty, retry ONCE without timestamps; the caller then keeps
+// the whole-slice text via its existing no-timestamps fallback. Bounded:
+// one extra decode, only for slices that decoded empty. Returns the
+// effective pipeline output ({ text, chunks }) for the slice.
+async function decodeSliceWithFallback(asr, samples, label) {
+	const timed = await asr(samples, {
+		chunk_length_s: 30,
+		stride_length_s: 5,
+		return_timestamps: true,
+	});
+	const timedText =
+		timed && typeof timed.text === "string" ? timed.text.trim() : "";
+	const timedChunks = (timed && timed.chunks) || [];
+	if (timedText.length > 0 || timedChunks.length > 0) return timed;
+	let plain;
+	try {
+		plain = await asr(samples, {
+			chunk_length_s: 30,
+			stride_length_s: 5,
+		});
+	} catch (err) {
+		console.warn(
+			`[transcribe] plain-decode retry failed for ${label}: ${err.message}`,
+		);
+		return timed;
+	}
+	const plainText =
+		plain && typeof plain.text === "string" ? plain.text.trim() : "";
+	if (plainText.length === 0) return timed;
+	return { ...plain, chunks: [] };
+}
+
 async function transcribeVideo(filePath, fromIndex = 0, opts = {}) {
 	const onProgress = opts.onProgress || null;
 	const model = parseWhisperModel(opts.modelId || process.env.WHISPER_MODEL_ID);
@@ -422,11 +460,11 @@ async function transcribeVideo(filePath, fromIndex = 0, opts = {}) {
 				await extractWavSlice(ffmpeg, filePath, sliceStart, sliceDur, wavPath);
 				const samples = wavToFloat32(fs.readFileSync(wavPath));
 				if (samples.length < 16000 * 0.5) continue; // <0.5 s — silence
-				const out = await asr(samples, {
-					chunk_length_s: 30,
-					stride_length_s: 5,
-					return_timestamps: true,
-				});
+				const out = await decodeSliceWithFallback(
+					asr,
+					samples,
+					opts.filename || filePath,
+				);
 				const rawChunks = (out && out.chunks) || [];
 				const sliceUtterances = rawChunks
 					.filter(
@@ -572,4 +610,5 @@ module.exports = {
 	WHISPER_MODEL_ID,
 	UTTERANCE_MAX_CHARS,
 	capUtteranceText,
+	decodeSliceWithFallback,
 };

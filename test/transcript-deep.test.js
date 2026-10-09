@@ -512,6 +512,83 @@ async function main() {
 				assert.throws(() => worker.wavToFloat32(buf), /aligned/);
 			},
 		);
+
+		// Timestamp-collapse fallback (decodeSliceWithFallback): a
+		// timestamped decode that collapses to empty text + zero chunks on
+		// audible speech must retry once without timestamps instead of
+		// recording a permanent gap. Stub asr, no binaries.
+		await check(
+			"empty timestamped decode retries plain and keeps text",
+			async () => {
+				const calls = [];
+				const stub = async (samples, opts) => {
+					calls.push(opts);
+					if (opts.return_timestamps) return { text: "", chunks: [] };
+					return { text: "hello world here", chunks: [] };
+				};
+				const out = await worker.decodeSliceWithFallback(
+					stub,
+					new Float32Array(16000),
+					"stub.mp4",
+				);
+				assert.equal(calls.length, 2);
+				assert.equal(calls[0].return_timestamps, true);
+				assert.equal(out.text, "hello world here");
+				assert.deepEqual(out.chunks, []);
+			},
+		);
+
+		await check("healthy timestamped decode never retries", async () => {
+			let calls = 0;
+			const stub = async () => {
+				calls++;
+				return {
+					text: "timed line",
+					chunks: [{ text: "timed line", timestamp: [0, 2] }],
+				};
+			};
+			const out = await worker.decodeSliceWithFallback(
+				stub,
+				new Float32Array(16000),
+				"stub.mp4",
+			);
+			assert.equal(calls, 1);
+			assert.equal(out.text, "timed line");
+		});
+
+		await check(
+			"plain retry failure keeps the empty timed result",
+			async () => {
+				const stub = async (samples, opts) => {
+					if (opts.return_timestamps) return { text: "", chunks: [] };
+					throw new Error("engine gone");
+				};
+				const out = await worker.decodeSliceWithFallback(
+					stub,
+					new Float32Array(16000),
+					"stub.mp4",
+				);
+				assert.equal(out.text, "");
+			},
+		);
+
+		await check(
+			"true silence stays empty (no retry invents speech)",
+			async () => {
+				let calls = 0;
+				const stub = async () => {
+					calls++;
+					return { text: "   ", chunks: [] };
+				};
+				const out = await worker.decodeSliceWithFallback(
+					stub,
+					new Float32Array(16000),
+					"stub.mp4",
+				);
+				assert.equal(calls, 2);
+				assert.equal(out.text.trim(), "");
+			},
+		);
 	}
 
 	// ---------------------------------------------------------------------------

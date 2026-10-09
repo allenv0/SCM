@@ -223,7 +223,18 @@ function outputTemplateFor(destDir) {
 }
 
 // Single video download. Returns argv (without the binary).
-function buildVideoArgs({ url, destDir, quality, archiveFile }) {
+// ffmpegLocation (optional): passed as --ffmpeg-location so yt-dlp can
+// merge the separate video+audio streams even when ffmpeg is not on the
+// GUI process PATH (packaged app launched from Finder). Without it yt-dlp
+// leaves behind unmerged .fXXX.mp4 video-only intermediates, which import
+// as silent videos with zero transcript chunks (dialogue search empty).
+function buildVideoArgs({
+	url,
+	destDir,
+	quality,
+	archiveFile,
+	ffmpegLocation,
+}) {
 	const args = [
 		"--no-playlist",
 		"--merge-output-format",
@@ -238,6 +249,9 @@ function buildVideoArgs({ url, destDir, quality, archiveFile }) {
 		"-o",
 		outputTemplateFor(destDir),
 	];
+	if (ffmpegLocation) {
+		args.push("--ffmpeg-location", ffmpegLocation);
+	}
 	if (archiveFile) {
 		args.push("--download-archive", archiveFile);
 	}
@@ -250,7 +264,14 @@ function buildVideoArgs({ url, destDir, quality, archiveFile }) {
 // archived item for --newest feeds; --max-downloads is the simpler bound
 // for v1. Channels and playlists share the shape — both are multi-item
 // feeds, and the archive file dedupes across them by video id.
-function buildListArgs({ url, destDir, quality, archiveFile, max }) {
+function buildListArgs({
+	url,
+	destDir,
+	quality,
+	archiveFile,
+	max,
+	ffmpegLocation,
+}) {
 	const args = [
 		"--merge-output-format",
 		"mp4",
@@ -266,6 +287,9 @@ function buildListArgs({ url, destDir, quality, archiveFile, max }) {
 		"-o",
 		outputTemplateFor(destDir),
 	];
+	if (ffmpegLocation) {
+		args.push("--ffmpeg-location", ffmpegLocation);
+	}
 	if (archiveFile) {
 		args.push("--download-archive", archiveFile);
 	}
@@ -330,6 +354,73 @@ function youtubeFilenames() {
 	return out;
 }
 
+// ---------------------------------------------------------------------------
+// Staging-file helpers: yt-dlp writes merged output as
+// "<uploader> - <title> [<id>].mp4" but its pre-merge intermediates keep the
+// format suffix ("... [<id>].f398.mp4" video-only + "... [<id>].f140.m4a"
+// audio). A naive strip-one-extension lookup ("... [<id>].f398.info.json")
+// misses the real sibling ("... [<id>].info.json"), so youtube.json was
+// never written for unmerged downloads and the YouTube tab stayed empty.
+// ---------------------------------------------------------------------------
+
+// True for yt-dlp pre-merge intermediate streams ("... [id].f398.mp4",
+// "... [id].f140-10.m4a"). Final merged files ("... [id].mp4") return false.
+function isIntermediateStreamFile(filename) {
+	const base = String(filename || "")
+		.split(/[/\\]/)
+		.pop();
+	return /\.f\d+[^/]*\.(mp4|m4a|webm|mkv|m4v|opus|mp3)$/i.test(base);
+}
+
+// Extract the 11-char YouTube video id from a staged filename's "[id]"
+// suffix (the output template always embeds it). Null when absent.
+function videoIdFromFilename(filename) {
+	const base = String(filename || "")
+		.split(/[\\/]/)
+		.pop();
+	const m = base.match(/\[([A-Za-z0-9_-]{11})\]/);
+	return m ? m[1] : null;
+}
+
+// Resolve the sibling .info.json for a staged download, handling both the
+// merged shape ("... [id].mp4" -> "... [id].info.json") and the
+// intermediate shape ("... [id].f398.mp4" -> "... [id].info.json").
+// Tries (1) strip-one-extension + .info.json, (2) strip the .fXXX stream
+// suffix + .info.json, (3) any "<prefix> [id].info.json" in destDir.
+// Returns the absolute path or null.
+function findInfoJsonFor(stagingFile, destDir) {
+	try {
+		const base = String(stagingFile).replace(/\.[^.]+$/, "");
+		const direct = `${base}.info.json`;
+		if (fs.existsSync(direct)) return direct;
+		const stripped = String(stagingFile).replace(
+			/\.f\d+[^.]*(\.[^.]+)$/,
+			".info.json",
+		);
+		if (stripped !== stagingFile && fs.existsSync(stripped)) return stripped;
+		const id = videoIdFromFilename(stagingFile);
+		if (id && destDir) {
+			try {
+				for (const entry of fs.readdirSync(destDir)) {
+					if (entry.endsWith(`[${id}].info.json`)) {
+						const full = path.join(destDir, entry);
+						try {
+							if (fs.statSync(full).isFile()) return full;
+						} catch {
+							/* next */
+						}
+					}
+				}
+			} catch {
+				/* destDir unreadable */
+			}
+		}
+	} catch {
+		/* best-effort */
+	}
+	return null;
+}
+
 module.exports = {
 	YTDLP_PINNED_VERSION,
 	YTDLP_RELEASE_BASE,
@@ -356,4 +447,7 @@ module.exports = {
 	saveYoutubeMeta,
 	recordYoutubeFile,
 	youtubeFilenames,
+	isIntermediateStreamFile,
+	videoIdFromFilename,
+	findInfoJsonFor,
 };

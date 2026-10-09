@@ -10,6 +10,9 @@ const {
 	buildChannelArgs,
 	buildPlaylistArgs,
 	buildListArgs,
+	isIntermediateStreamFile,
+	videoIdFromFilename,
+	findInfoJsonFor,
 	DEFAULT_CONFIG,
 } = require("../main-lib/youtube.js");
 
@@ -135,5 +138,117 @@ assert.deepEqual(
 		max: 3,
 	}),
 );
+
+// --- ffmpeg-location (GUI PATH fix): yt-dlp must merge even when ffmpeg
+// is not on the Finder's PATH, or downloads land as silent .fXXX video-only
+// files with zero transcript chunks.
+const ffArgs = buildVideoArgs({
+	url: "https://www.youtube.com/watch?v=abc",
+	destDir: "/tmp/yt",
+	quality: "720p",
+	archiveFile: null,
+	ffmpegLocation: "/opt/homebrew/bin/ffmpeg",
+});
+assert.ok(ffArgs.includes("--ffmpeg-location"));
+assert.equal(
+	ffArgs[ffArgs.indexOf("--ffmpeg-location") + 1],
+	"/opt/homebrew/bin/ffmpeg",
+);
+const noFfArgs = buildVideoArgs({
+	url: "https://www.youtube.com/watch?v=abc",
+	destDir: "/tmp/yt",
+	quality: "720p",
+	archiveFile: null,
+});
+assert.ok(!noFfArgs.includes("--ffmpeg-location"));
+const ffList = buildListArgs({
+	url: "https://www.youtube.com/@a",
+	destDir: "/tmp/yt",
+	quality: "720p",
+	archiveFile: null,
+	max: 3,
+	ffmpegLocation: "/x/ffmpeg",
+});
+assert.ok(ffList.includes("--ffmpeg-location"));
+
+// --- intermediate stream detection + info.json resolution ---
+assert.equal(
+	isIntermediateStreamFile("Uploader - Title [dQw4w9WgXcQ].f398.mp4"),
+	true,
+);
+assert.equal(
+	isIntermediateStreamFile("Uploader - Title [dQw4w9WgXcQ].f140-10.m4a"),
+	true,
+);
+assert.equal(
+	isIntermediateStreamFile("Uploader - Title [dQw4w9WgXcQ].mp4"),
+	false,
+);
+assert.equal(
+	videoIdFromFilename("Uploader - Title [dQw4w9WgXcQ].f398.mp4"),
+	"dQw4w9WgXcQ",
+);
+assert.equal(videoIdFromFilename("no-id-here.mp4"), null);
+// findInfoJsonFor handles the .fXXX intermediate shape: sibling lookup
+// strips only the last extension first, then the stream suffix.
+{
+	const fs = require("fs");
+	const os = require("os");
+	const path = require("path");
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yt-info-"));
+	const info = path.join(dir, "Uploader - Title [dQw4w9WgXcQ].info.json");
+	fs.writeFileSync(info, JSON.stringify({ id: "dQw4w9WgXcQ" }));
+	assert.equal(
+		findInfoJsonFor(path.join(dir, "Uploader - Title [dQw4w9WgXcQ].mp4"), dir),
+		info,
+	);
+	assert.equal(
+		findInfoJsonFor(
+			path.join(dir, "Uploader - Title [dQw4w9WgXcQ].f398.mp4"),
+			dir,
+		),
+		info,
+	);
+	fs.rmSync(dir, { recursive: true, force: true });
+}
+
+// --- main-process wiring (source-text contract: the offline electron smoke
+// in scripts/e2e/youtube.js drives the real functions; these asserts pin
+// the seams it needs so a rename breaks here, not silently in the smoke).
+{
+	const path = require("path");
+	const main = require("fs").readFileSync(
+		path.join(__dirname, "..", "main.js"),
+		"utf-8",
+	);
+	for (const seam of [
+		"function mergeVideoAudio(",
+		"function mergeYoutubeIntermediates(",
+		"function backfillYoutubeMeta(",
+		"function repairSilentYoutubeImports(",
+		"function resolveYtDlpFfmpegLocation(",
+		"--ffmpeg-location",
+		"findInfoJsonFor(f, destDir)",
+		"await repairSilentYoutubeImports()",
+		"process.env.ELECTRON_SMOKE_YOUTUBE",
+		"runYoutubeTest({",
+		"runYoutubeJob,",
+	]) {
+		assert.ok(main.includes(seam), `main.js missing wiring: ${seam}`);
+	}
+	const e2e = require("fs").readFileSync(
+		path.join(__dirname, "..", "scripts", "e2e", "youtube.js"),
+		"utf-8",
+	);
+	assert.ok(e2e.includes("runYoutubeTest"), "e2e driver missing");
+	const battery = require("fs").readFileSync(
+		path.join(__dirname, "..", "scripts", "smoke-all.sh"),
+		"utf-8",
+	);
+	assert.ok(
+		battery.includes("ELECTRON_SMOKE_YOUTUBE=1"),
+		"battery missing youtube step",
+	);
+}
 
 console.log("youtube.test.js: all assertions passed");

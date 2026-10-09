@@ -8338,6 +8338,38 @@ function resolveYtDlpBinary() {
 	return "yt-dlp"; // PATH lookup; spawn reports ENOENT cleanly when absent
 }
 
+// ffmpeg location for yt-dlp's --ffmpeg-location: without it a GUI launch
+// (Finder PATH without Homebrew) downloads video-only .fXXX.mp4 + .m4a
+// intermediates that never merge — importing silent videos with zero
+// transcript chunks. Mirrors indexerEnv()'s packaged-ffmpeg preference,
+// then ffmpeg-static (dev), then well-known system paths.
+function resolveYtDlpFfmpegLocation() {
+	try {
+		if (
+			process.resourcesPath &&
+			fs.existsSync(path.join(process.resourcesPath, "ffmpeg"))
+		) {
+			return path.join(process.resourcesPath, "ffmpeg");
+		}
+	} catch {
+		/* fall through */
+	}
+	try {
+		const statik = require("ffmpeg-static");
+		if (statik && fs.existsSync(statik)) return statik;
+	} catch {
+		/* fall through */
+	}
+	for (const p of ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"]) {
+		try {
+			if (fs.existsSync(p)) return p;
+		} catch {
+			/* next */
+		}
+	}
+	return null;
+}
+
 function downloadYtDlpBinary(version) {
 	// Fetch-on-first-use: keeps the DMG small; mirrors the weights/OCR-pack
 	// pattern. macOS universal asset; chmod +x on landing.
@@ -8500,6 +8532,426 @@ function newStagingFiles(dir, before) {
 	return out.sort();
 }
 
+// Merge yt-dlp pre-merge intermediates (video-only .fXXX.mp4 + audio .m4a)
+// into a final merged .mp4 with audio, using the bundled ffmpeg. Returns
+// the import list with intermediates replaced by their merged output.
+// Groups by [videoId]: when a final merged file already exists for an id,
+// its intermediates are dropped (yt-dlp leftovers, never imported as
+// silent videos). When only intermediates exist, the largest video stream
+// + the audio stream are merged to "<prefix> [id].mp4" (stream-copy video,
+// AAC audio). Failures keep the original list — a silent import beats no
+// import, and the failure is logged.
+// Merge one video-only stream + one audio stream into a single mp4
+// (video stream-copied, audio re-encoded to AAC). Resolves when the output
+// exists and is non-empty; rejects with the ffmpeg tail otherwise. Shared
+// by the download-time intermediate merge and the silent-import repair.
+function mergeVideoAudio(ffmpegBin, videoPath, audioPath, outPath) {
+	return new Promise((resolveMerge, rejectMerge) => {
+		try {
+			const { spawn } = require("child_process");
+			const child = spawn(
+				ffmpegBin,
+				[
+					"-y",
+					"-i",
+					videoPath,
+					"-i",
+					audioPath,
+					"-c:v",
+					"copy",
+					"-c:a",
+					"aac",
+					"-shortest",
+					outPath,
+				],
+				{ stdio: ["ignore", "pipe", "pipe"] },
+			);
+			let errText = "";
+			try {
+				child.stderr.on("data", (d) => {
+					errText += String(d);
+					if (errText.length > 2000) errText = errText.slice(-2000);
+				});
+			} catch {
+				/* ignore */
+			}
+			const timer = setTimeout(
+				() => {
+					try {
+						child.kill("SIGKILL");
+					} catch {
+						/* already exited */
+					}
+					rejectMerge(new Error("ffmpeg merge timed out"));
+				},
+				1000 * 60 * 20,
+			);
+			child.on("error", (err) => {
+				clearTimeout(timer);
+				rejectMerge(err);
+			});
+			child.on("close", (code) => {
+				clearTimeout(timer);
+				if (code !== 0) {
+					rejectMerge(new Error(`ffmpeg exit ${code}: ${errText.slice(-300)}`));
+					return;
+				}
+				try {
+					if (fs.existsSync(outPath) && fs.statSync(outPath).size > 0) {
+						resolveMerge();
+					} else {
+						rejectMerge(new Error("merge produced no output"));
+					}
+				} catch (err) {
+					rejectMerge(err);
+				}
+			});
+		} catch (err) {
+			rejectMerge(err);
+		}
+	});
+}
+
+async function mergeYoutubeIntermediates(destDir, files) {
+	const byId = new Map();
+	for (const f of files) {
+		const id = youtube.videoIdFromFilename(f);
+		if (!id) continue;
+		if (!byId.has(id)) byId.set(id, []);
+		byId.get(id).push(f);
+	}
+	if (byId.size === 0) return files;
+	let ffmpeg;
+	try {
+		ffmpeg = resolveYtDlpFfmpegLocation();
+		if (ffmpeg && !fs.existsSync(ffmpeg)) ffmpeg = null;
+	} catch {
+		ffmpeg = null;
+	}
+	const out = [];
+	let mergedAny = false;
+	for (const [id, group] of byId) {
+		const finals = group.filter((f) => !youtube.isIntermediateStreamFile(f));
+		if (finals.length > 0) {
+			// Merged output exists — drop the intermediates for this id.
+			out.push(...finals);
+			continue;
+		}
+		// Only intermediates: pick the video + audio streams.
+		const videos = group
+			.filter((f) => /\.(mp4|mkv|webm|mov|m4v)$/i.test(f))
+			.sort((a, b) => {
+				try {
+					return fs.statSync(b).size - fs.statSync(a).size;
+				} catch {
+					return 0;
+				}
+			});
+		let audios = [];
+		try {
+			for (const entry of fs.readdirSync(destDir)) {
+				if (!/\.(m4a|opus|mp3|aac|webm)$/i.test(entry)) continue;
+				if (!entry.includes(`[${id}]`)) continue;
+				const full = path.join(destDir, entry);
+				try {
+					if (fs.statSync(full).isFile()) audios.push(full);
+				} catch {
+					/* ignore */
+				}
+			}
+		} catch {
+			/* destDir unreadable */
+		}
+		audios = audios.sort((a, b) => {
+			try {
+				return fs.statSync(b).size - fs.statSync(a).size;
+			} catch {
+				return 0;
+			}
+		});
+		const video = videos[0];
+		const audio = audios[0];
+		if (!video || !audio || !ffmpeg) {
+			out.push(...group);
+			continue;
+		}
+		const mergedName = path
+			.basename(video)
+			.replace(/\.f\d+[^.]*(\.[^.]+)$/, "$1");
+		const finalName =
+			mergedName === path.basename(video)
+				? path.basename(video).replace(/\.[^.]+$/, ".mp4")
+				: mergedName;
+		const mergedPath = path.join(destDir, finalName);
+		try {
+			if (!fs.existsSync(mergedPath) || fs.statSync(mergedPath).size === 0) {
+				await mergeVideoAudio(ffmpeg, video, audio, mergedPath);
+				console.log(
+					`[youtube] merged intermediates for [${id}] → ${finalName}`,
+				);
+			}
+			out.push(mergedPath);
+			mergedAny = true;
+			// Remove the video-only intermediate so a later job never
+			// imports the silent stream by mistake (audio + info stay).
+			for (const f of group) {
+				if (f === mergedPath) continue;
+				if (/\.f\d+[^.]*\.(mp4|mkv|webm|mov|m4v)$/i.test(path.basename(f))) {
+					try {
+						fs.unlinkSync(f);
+					} catch {
+						/* best-effort */
+					}
+				}
+			}
+		} catch (err) {
+			console.warn(`[youtube] merge failed for [${id}]: ${err.message}`);
+			out.push(...group);
+		}
+	}
+	// Files without a parsable [id] pass through untouched.
+	for (const f of files) {
+		if (!youtube.videoIdFromFilename(f)) out.push(f);
+	}
+	return mergedAny ? [...new Set(out)].sort() : files;
+}
+
+// Backfill youtube.json for videos downloaded before the metadata fix
+// (or imported while the record step missed the .info.json sibling).
+// Scans staging *.info.json files, matches each id against library
+// filenames containing "[id]", and records { filename, channel, ... }.
+// Runs at startup and lazily on youtube-files; returns the repair count.
+function backfillYoutubeMeta() {
+	let repaired = 0;
+	try {
+		const destDir = youtube.stagingDir();
+		const meta = youtube.loadYoutubeMeta();
+		const knownFilenames = new Set(
+			Object.values(meta).map((v) => v && v.filename),
+		);
+		let infos = [];
+		try {
+			infos = fs.readdirSync(destDir).filter((e) => e.endsWith(".info.json"));
+		} catch {
+			return 0;
+		}
+		let lib = null;
+		try {
+			lib = loadLibrary();
+		} catch {
+			lib = null;
+		}
+		const libFilenames = (lib && lib.filenames) || [];
+		for (const entry of infos) {
+			let info = null;
+			try {
+				info = JSON.parse(fs.readFileSync(path.join(destDir, entry), "utf-8"));
+			} catch {
+				continue;
+			}
+			if (!info || !info.id) continue;
+			const id = String(info.id);
+			if (meta[id]) continue;
+			const needle = `[${id}]`;
+			const match =
+				libFilenames.find((n) => String(n).includes(needle)) ||
+				[...knownFilenames].find((n) => String(n).includes(needle));
+			// Fall back to the merged output name even when the library row
+			// still carries the old .fXXX intermediate filename.
+			let filename = match || null;
+			if (!filename) {
+				try {
+					const candidates = fs
+						.readdirSync(destDir)
+						.filter((e) => e.includes(needle));
+					const merged = candidates.find(
+						(e) =>
+							/\.(mp4|mkv|webm|mov|m4v)$/i.test(e) &&
+							!youtube.isIntermediateStreamFile(e),
+					);
+					if (merged) filename = merged;
+				} catch {
+					/* ignore */
+				}
+			}
+			if (!filename) continue;
+			// Only record rows that actually exist in the library (or are
+			// the merged staging output waiting for import) — never ghosts.
+			const inLibrary = libFilenames.includes(filename);
+			let stagingExists = false;
+			try {
+				stagingExists = fs.existsSync(path.join(destDir, filename));
+			} catch {
+				/* ignore */
+			}
+			if (!inLibrary && !stagingExists) continue;
+			youtube.recordYoutubeFile({
+				videoId: id,
+				filename,
+				channel: info.uploader || info.channel || null,
+				pageUrl: info.webpage_url || null,
+				title: info.title || null,
+			});
+			repaired++;
+		}
+		if (repaired > 0) {
+			console.log(
+				`[youtube] backfilled ${repaired} video(s) into youtube.json`,
+			);
+		}
+	} catch (err) {
+		console.warn(`[youtube] backfill failed: ${err.message}`);
+	}
+	return repaired;
+}
+
+// Repair YouTube library rows imported as silent video-only files (the
+// pre-fix downloads that never merged: .fXXX.mp4 with no audio stream, so
+// transcription recorded zero chunks and dialogue search is empty for
+// them). For each youtube.json row whose library file has no audio:
+//   - staging audio present  → merge (stream-copy video + AAC) into a temp
+//     file, verify it has audio, then replace the library file IN PLACE
+//     (same filename, so index/embeddings/segments stay aligned) and drop
+//     the empty transcript row so backfillTranscription re-queues it;
+//   - staging audio gone     → clear the id from .yt-dlp-archive.txt so one
+//     URL re-paste re-downloads fresh (merging correctly now).
+// Only youtube.json rows are ever touched — user photos are out of scope —
+// and any merge/verify failure keeps the original file. Idempotent: a
+// repaired file has audio and is skipped on the next launch. Runs at
+// startup after backfillYoutubeMeta, before backfillTranscription.
+async function repairSilentYoutubeImports() {
+	const result = { repaired: 0, clearedForRedownload: 0 };
+	try {
+		const destDir = youtube.stagingDir();
+		const meta = youtube.loadYoutubeMeta();
+		const ids = Object.keys(meta);
+		if (ids.length === 0) return result;
+		const lib = loadLibrary();
+		const libSet = new Set(lib.filenames || []);
+		let ffmpegBin = null;
+		try {
+			ffmpegBin = resolveYtDlpFfmpegLocation();
+			if (ffmpegBin && !fs.existsSync(ffmpegBin)) ffmpegBin = null;
+		} catch {
+			ffmpegBin = null;
+		}
+		let probeHasAudio = null;
+		try {
+			probeHasAudio = require("./indexer/video-utils.js").probeHasAudio || null;
+		} catch {
+			probeHasAudio = null;
+		}
+		if (!ffmpegBin || !probeHasAudio) return result;
+		for (const id of ids) {
+			const row = meta[id];
+			const filename =
+				row && typeof row.filename === "string" ? row.filename : null;
+			if (!filename || !libSet.has(filename)) continue;
+			const libPath = path.join(PHOTOS_DIR, filename);
+			let hasAudio = false;
+			try {
+				hasAudio = await probeHasAudio(ffmpegBin, libPath);
+			} catch {
+				continue;
+			}
+			if (hasAudio) continue;
+			// Silent YouTube import — find the staging audio for this id.
+			let audio = null;
+			try {
+				const candidates = [];
+				for (const entry of fs.readdirSync(destDir)) {
+					if (!/\.(m4a|opus|mp3|aac|webm)$/i.test(entry)) continue;
+					if (!entry.includes(`[${id}]`)) continue;
+					const full = path.join(destDir, entry);
+					try {
+						if (fs.statSync(full).isFile()) candidates.push(full);
+					} catch {
+						/* ignore */
+					}
+				}
+				candidates.sort((a, b) => {
+					try {
+						return fs.statSync(b).size - fs.statSync(a).size;
+					} catch {
+						return 0;
+					}
+				});
+				audio = candidates[0] || null;
+			} catch {
+				audio = null;
+			}
+			if (!audio) {
+				// No audio left to merge with — clear the archive line so a
+				// re-paste of the URL re-downloads instead of archive-skipping.
+				try {
+					const archiveFile = youtube.archiveFileFor(destDir);
+					const raw = fs.readFileSync(archiveFile, "utf-8");
+					const kept = raw
+						.split("\n")
+						.filter((line) => line.trim() !== "" && !line.includes(id));
+					const dropped = raw.split("\n").length - kept.length;
+					if (dropped > 0) {
+						fs.writeFileSync(archiveFile, kept.join("\n") + "\n");
+						result.clearedForRedownload++;
+						console.log(
+							`[youtube] no staging audio for [${id}] — archive cleared, re-paste the URL to re-download`,
+						);
+					}
+				} catch {
+					/* archive missing/unreadable — nothing to clear */
+				}
+				continue;
+			}
+			try {
+				const tmpOut = path.join(destDir, `.repair-${id}-${Date.now()}.mp4`);
+				await mergeVideoAudio(ffmpegBin, libPath, audio, tmpOut);
+				let mergedHasAudio = false;
+				try {
+					mergedHasAudio = await probeHasAudio(ffmpegBin, tmpOut);
+				} catch {
+					mergedHasAudio = false;
+				}
+				if (!mergedHasAudio) {
+					try {
+						fs.unlinkSync(tmpOut);
+					} catch {
+						/* best-effort */
+					}
+					console.warn(
+						`[youtube] repair merge for [${id}] has no audio — keeping original`,
+					);
+					continue;
+				}
+				fs.renameSync(tmpOut, libPath);
+				// Drop the poisoned empty transcript row so the transcription
+				// backfill re-queues this file (same boot, real audio now).
+				try {
+					const c = loadTranscripts(loadLibrary().modelId);
+					if (c && c.videos instanceof Map) c.videos.delete(filename);
+					if (c && c.utterances instanceof Map) c.utterances.delete(filename);
+					if (c && c.progress && typeof c.progress === "object")
+						delete c.progress[filename];
+					saveTranscripts();
+				} catch {
+					/* transcript reset is best-effort; backfill still skips empty rows only when present */
+				}
+				result.repaired++;
+				console.log(`[youtube] repaired silent import [${id}] → ${filename}`);
+			} catch (err) {
+				console.warn(`[youtube] repair failed for [${id}]: ${err.message}`);
+			}
+		}
+		if (result.repaired > 0 || result.clearedForRedownload > 0) {
+			console.log(
+				`[youtube] silent-import repair: ${result.repaired} merged, ${result.clearedForRedownload} cleared for re-download`,
+			);
+		}
+	} catch (err) {
+		console.warn(`[youtube] silent-import repair failed: ${err.message}`);
+	}
+	return result;
+}
+
 function runYoutubeJob({ kind, url }) {
 	return new Promise((resolve) => {
 		let cfg;
@@ -8517,6 +8969,7 @@ function runYoutubeJob({ kind, url }) {
 			return;
 		}
 		const archiveFile = youtube.archiveFileFor(destDir);
+		const ffmpegLocation = resolveYtDlpFfmpegLocation();
 		// Channels and playlists are both multi-item feeds (list argv);
 		// only single videos take the --no-playlist path.
 		const args =
@@ -8526,6 +8979,7 @@ function runYoutubeJob({ kind, url }) {
 						destDir,
 						quality: cfg.quality,
 						archiveFile,
+						ffmpegLocation,
 					})
 				: youtube.buildListArgs({
 						url,
@@ -8533,6 +8987,7 @@ function runYoutubeJob({ kind, url }) {
 						quality: cfg.quality,
 						archiveFile,
 						max: cfg.maxPerChannel,
+						ffmpegLocation,
 					});
 		const before = snapshotStagingFiles(destDir);
 		const bin = resolveYtDlpBinary();
@@ -8583,7 +9038,7 @@ function runYoutubeJob({ kind, url }) {
 		});
 		child.on("close", async (code) => {
 			clearTimeout(timer);
-			const files = newStagingFiles(destDir, before);
+			let files = newStagingFiles(destDir, before);
 			if (code !== 0 && files.length === 0) {
 				const hint = tail.trim().split("\n").slice(-3).join(" ").slice(0, 300);
 				resolve({ ok: false, error: hint || `yt-dlp exit ${code}` });
@@ -8594,14 +9049,24 @@ function runYoutubeJob({ kind, url }) {
 				resolve({ ok: true, files: [] });
 				return;
 			}
+			// Merge fallback: if yt-dlp left unmerged .fXXX intermediates
+			// (no ffmpeg at download time), merge each video+audio pair now
+			// with the bundled ffmpeg before importing — otherwise the
+			// library gets a silent video-only file with zero transcript.
+			try {
+				const merged = await mergeYoutubeIntermediates(destDir, files);
+				if (merged && merged.length > 0) files = merged;
+			} catch (err) {
+				console.warn(`[youtube] intermediate merge failed: ${err.message}`);
+			}
 			try {
 				const res = await importPaths(files);
-				// Record videoId metadata from sibling .info.json files.
+				// Record videoId metadata from sibling .info.json files
+				// (handles both merged and .fXXX intermediate shapes).
 				for (const f of files) {
 					try {
-						const base = f.replace(/\.[^.]+$/, "");
-						const infoPath = `${base}.info.json`;
-						if (!fs.existsSync(infoPath)) continue;
+						const infoPath = youtube.findInfoJsonFor(f, destDir);
+						if (!infoPath) continue;
 						const info = JSON.parse(fs.readFileSync(infoPath, "utf-8"));
 						if (info && info.id) {
 							const lib = loadLibrary();
@@ -8750,6 +9215,14 @@ ipcMain.handle("memories:youtube-set-config", async (_event, patch) => {
 
 ipcMain.handle("memories:youtube-files", async () => {
 	try {
+		// Lazily repair youtube.json for downloads that landed before the
+		// metadata fix — otherwise the YouTube tab filters to an empty set
+		// even though the videos are indexed in the library.
+		try {
+			backfillYoutubeMeta();
+		} catch {
+			/* best-effort */
+		}
 		const meta = youtube.loadYoutubeMeta();
 		return { ok: true, files: youtube.youtubeFilenames(), meta };
 	} catch (err) {
@@ -8836,6 +9309,23 @@ if (!gotTheLock) {
 		// metadata before the renderer's first index request, so All/File is
 		// correct immediately rather than only after a newly imported batch.
 		await backfillSourceMtimes();
+		// YouTube downloads that landed before the youtube.json metadata fix
+		// (unmerged .fXXX intermediates missed their .info.json sibling):
+		// re-link staging info.jsons to library rows so the YouTube tab and
+		// its dialogue search see already-indexed videos immediately.
+		try {
+			backfillYoutubeMeta();
+		} catch {
+			/* best-effort */
+		}
+		// Silent YouTube imports (video-only files that never merged): heal
+		// them from staging audio before the transcription backfill runs, so
+		// repaired files re-transcribe in the same boot.
+		try {
+			await repairSilentYoutubeImports();
+		} catch {
+			/* best-effort */
+		}
 		protocol.handle(SCHEME, handleAppRequest);
 		buildApplicationMenu();
 		// Apply the persisted app icon BEFORE entering menu-bar-only. The Dock
@@ -9190,6 +9680,29 @@ if (!gotTheLock) {
 					importPaths,
 					loadLibrary,
 					stopWatchedFolderWatchers,
+				});
+				console.log("[smoke] OK");
+			} catch (err) {
+				console.error("[smoke] FAILED:", err);
+				process.exitCode = 1;
+			}
+			quitSmoke();
+			return;
+		}
+
+		if (process.env.ELECTRON_SMOKE_YOUTUBE) {
+			try {
+				const { runYoutubeTest } = require("./scripts/e2e/youtube.js");
+				await runYoutubeTest({
+					importPaths,
+					loadLibrary,
+					youtube,
+					mergeYoutubeIntermediates,
+					backfillYoutubeMeta,
+					repairSilentYoutubeImports,
+					resolveYtDlpFfmpegLocation,
+					runYoutubeJob,
+					PHOTOS_DIR,
 				});
 				console.log("[smoke] OK");
 			} catch (err) {

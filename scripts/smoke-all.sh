@@ -13,6 +13,7 @@
 #   electron: watched-folder auto-watch (persist + live sync + launch sync)
 #   electron: failure cache (poison file retried 3×, then skipped until changed)
 #   electron: rename dedupe (renamed file skipped by content hash)
+#   electron: youtube (offline fixtures: merge, info-lookup, backfill, silent repair)
 #   electron: reveal-target resolution (source → library copy → null)
 set -u
 
@@ -162,6 +163,10 @@ step "electron: rename dedupe — renamed file skipped by content hash"
 TMP10=$(setup_tmp scm-renamededupe)
 RENAMEDEDUPE_TEST_DIR="$(mktemp -d /tmp/scm-renamededupe-src-XXXX)"
 electron_run "$TMP10" ELECTRON_SMOKE=1 ELECTRON_SMOKE_RENAMEDEDUPE=1 RENAMEDEDUPE_TEST_DIR="$RENAMEDEDUPE_TEST_DIR" || FAILED=1
+
+step "electron: youtube — merge, info-lookup, backfill, silent-repair, archive-clear (offline fixtures)"
+TMP14=$(setup_tmp scm-youtube)
+electron_run "$TMP14" ELECTRON_SMOKE=1 ELECTRON_SMOKE_YOUTUBE=1 || FAILED=1
 
 step "electron: reveal-target resolution (source → copy → null)"
 TMP6=$(setup_tmp scm-reveal)

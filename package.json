@@ -1,6 +1,6 @@
 {
 	"name": "scm",
-	"version": "0.2.6",
+	"version": "0.2.7",
 	"private": true,
 	"license": "MIT",
 	"description": "SCM: local-first photo & video search (vision, scenes, OCR, dialogue)",
