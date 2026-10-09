@@ -1213,7 +1213,10 @@ function createIndexerWorker({ primary = false } = {}) {
 				else j(new Error(msg.error || "Indexer request failed"));
 			}
 		});
-		worker.process.on("exit", () => {
+		worker.process.on("exit", (_event, code) => {
+			// Log the code: a dead worker with no reason in the log is
+			// undebuggable from CI artifacts (battery-log forensics).
+			console.log(`[indexer] worker exited (code=${code})`);
 			worker.dead = true;
 			indexerWorkers = indexerWorkers.filter((w) => w !== worker);
 			for (const [, req] of worker.pending) {

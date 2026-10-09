@@ -509,8 +509,12 @@ async function runDeepTest(ctx) {
 	// (C-04 — cursor pagination is deleted), so "the rest loaded" is proven
 	// by the last item being mounted after the scroll, not by a DOM card
 	// count — while the mounted count stays bounded and the scroll span
-	// stays stable (windowing, not append-growth). deep-blue is the oldest
-	// fixture = the LAST row of the grid.
+	// stays within one row of drift (windowing, not append-growth).
+	// deep-blue is the oldest fixture = the LAST row of the grid.
+	// The span is an estimate that converges as rows mount and measure
+	// (thumbs/fonts settle async), so exact pixel equality across the
+	// scroll is racy — append-growth, the real enemy, moves it by orders
+	// of magnitude more than one row.
 	await checkAsync(
 		"UI: virtualized grid reaches the last item with bounded DOM",
 		async () => {
@@ -536,31 +540,49 @@ async function runDeepTest(ctx) {
 					return { ok: false, error: 'unbounded DOM on first paint', n: firstCount };
 				}
 				// deep-blue is the oldest fixture = the LAST row of the grid.
+				// Keep pushing to the very bottom: thumbs/layout settle async
+				// and the span converges as estimated row heights become
+				// measured. Settle = span unchanged across consecutive polls
+				// with the last row mounted.
 				window.scrollTo(0, document.body.scrollHeight);
 				const t1 = Date.now();
-				while (Date.now() - t1 < 10000) {
+				let steady = 0;
+				let lastH = -1;
+				while (Date.now() - t1 < 15000) {
 					await sleep(250);
+					window.scrollTo(0, document.body.scrollHeight);
+					const h = document.body.scrollHeight;
 					const a = alts();
-					if (a.some((x) => x.includes('deep-blue'))) {
-						const finalHeight = document.body.scrollHeight;
+					if (!a.some((x) => x.includes('deep-blue'))) {
+						steady = 0;
+						lastH = -1;
+						continue;
+					}
+					steady = h === lastH ? steady + 1 : 0;
+					lastH = h;
+					if (steady >= 3) {
 						return {
 							ok: true,
 							first: firstCount,
 							last: a.find((x) => x.includes('deep-blue')),
-							stable: finalHeight === firstHeight,
 							firstHeight,
-							finalHeight,
+							finalHeight: h,
+							drift: h - firstHeight,
 							finalCount: a.length,
 						};
 					}
 				}
-				return { ok: false, error: 'scroll did not reach the last item', alts: alts().slice(0, 12) };
+				return { ok: false, error: 'scroll span never settled at the last item', alts: alts().slice(0, 12) };
 			})()
 		`);
 			if (out.error) throw new Error(out.error);
-			if (!out.stable) {
+			// Windowing, not append-growth: allow up to one row of drift for
+			// estimate convergence — append-growth would move the span by
+			// thousands of px, an order of magnitude past this band.
+			const SPAN_DRIFT_TOLERANCE_PX = 200;
+			if (Math.abs(out.drift) > SPAN_DRIFT_TOLERANCE_PX) {
 				throw new Error(
-					`scroll span moved on scroll: ${out.firstHeight} -> ${out.finalHeight}`,
+					`scroll span moved on scroll: ${out.firstHeight} -> ${out.finalHeight} (drift ${out.drift}px)`,
 				);
 			}
 			if (out.finalCount >= 150) {
