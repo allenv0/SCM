@@ -215,7 +215,7 @@ jobs:
 
       - name: Upload subset log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scm-pr-subset-log
           path: /tmp/scm-pr-subset.log
@@ -270,7 +270,7 @@ jobs:
 
       - name: Upload battery log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scm-battery-log
           path: /tmp/scm-battery.log
