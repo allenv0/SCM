@@ -37,13 +37,20 @@ const alive = (pid) => {
 	}
 };
 
-async function waitFor(predicate, timeoutMs = 3000) {
-	const started = Date.now();
-	while (Date.now() - started < timeoutMs) {
-		if (predicate()) return true;
-		await sleep(25);
-	}
-	return false;
+// Await a child's own exit event instead of polling alive(): a SIGKILLed
+// child stays a zombie — and answers kill(pid, 0) — until Node reaps it, so
+// under the directory run's loaded event loop a wall-clock poll can expire
+// before the reap (the 2026-10-27 CI flake, and the 2026-10-28 battery
+// repeat on the sweep assertion). The kill → listener-attach window below
+// holds no await, so the exit macrotask cannot slip past the listener.
+function exitWithin(child, label, ms = 15000) {
+	const exit = new Promise((resolve) => child.once("exit", resolve));
+	return Promise.race([
+		exit,
+		sleep(ms).then(() => {
+			throw new Error(`${label} did not exit within ${ms} ms`);
+		}),
+	]);
 }
 
 // A child that stays alive until it is killed.
@@ -66,27 +73,16 @@ function spawnSleeper() {
 	// ...and the sweep kills it.
 	assert.equal(killTrackedChildren("test"), 1);
 	assert.equal(trackedChildCount(), 0, "the sweep empties the registry");
-	assert.ok(
-		await waitFor(() => !alive(first.pid)),
-		"the tracked child is dead after the sweep",
-	);
+	await exitWithin(first, "the tracked child");
 
 	// A child that exits on its own is released (no registry leak). Await the
-	// child's own exit event instead of polling: the directory run shares one
-	// process with every other file, so a wall-clock poll can expire while the
-	// event loop is busy (the 2026-10-27 CI flake). The registry's listener was
-	// attached first, so by the time this resolves the entry is already gone.
+	// child's own exit event via exitWithin (the directory run shares one
+	// process with every other file — see the helper note above).
 	const second = spawnSleeper();
 	trackChild(second, "second");
 	assert.equal(trackedChildCount(), 1);
-	const secondExit = new Promise((resolve) => second.once("exit", resolve));
 	second.kill("SIGKILL");
-	await Promise.race([
-		secondExit,
-		sleep(15000).then(() => {
-			throw new Error("a self-exiting child did not exit within 15 s");
-		}),
-	]);
+	await exitWithin(second, "a self-exiting child");
 	assert.equal(trackedChildCount(), 0, "a self-exiting child is untracked");
 
 	// One child can be killed without touching the others.
@@ -98,10 +94,10 @@ function spawnSleeper() {
 	assert.equal(killTrackedChild(aId), true);
 	assert.equal(trackedChildCount(), 1);
 	assert.deepEqual(trackedChildLabels(), ["b"]);
-	assert.ok(await waitFor(() => !alive(a.pid)), "the targeted child is dead");
+	await exitWithin(a, "the targeted child");
 	assert.equal(alive(b.pid), true, "the other child is untouched");
 	assert.equal(killTrackedChildren("test"), 1);
-	assert.ok(await waitFor(() => !alive(b.pid)), "the sweep killed the rest");
+	await exitWithin(b, "the swept child");
 
 	// An already-dead child is never registered (its exit event already
 	// fired, so the registry would have leaked the entry).
