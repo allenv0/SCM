@@ -225,7 +225,12 @@ jobs:
     name: full smoke battery
     # Main pushes, nightly schedule, manual dispatch — plus PRs carrying the
     # `battery` label (see the pull_request types above). Never plain PRs.
-    if: github.event_name != 'pull_request' || (github.event.action == 'labeled' && contains(github.event.pull_request.labels.*.name, 'battery'))
+    # The label is checked by PRESENCE, not by the `labeled` event alone: a
+    # push to a labeled PR (synchronize) must keep running the battery, not
+    # silently skip it (the 0.2.13 release PR hid exactly that).
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'battery')
     needs: gates
     runs-on: macos-latest
     timeout-minutes: 120
