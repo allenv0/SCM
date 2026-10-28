@@ -20,6 +20,7 @@ import { handle } from "../ipc-wrapper.ts";
 import ctx from "../context.ts";
 import {
 	loadLibrary,
+	ensureLibraryBins,
 	saveLibrary,
 	removeSegmentsForAllModels,
 	removeTranscriptsForAllModels,
@@ -486,6 +487,11 @@ async function importPathsInner(
 			});
 			return;
 		}
+		// Materialize the existing bin pair BEFORE changing filenames. The
+		// lazy getter reads `filenames.length` as the expected row count; if
+		// the push happened first, a healthy N-row bin would be read as
+		// N+1 and discarded as misaligned.
+		ensureLibraryBins();
 		l.filenames.push(outcome.filename);
 		l.sources.push(outcome.filePath);
 		if (!l.sourceMtimes) l.sourceMtimes = [];
@@ -912,6 +918,9 @@ function dropQueuedJobsFor(filename: string) {
 // was actually removed.
 function removeLibraryRow(filename: string) {
 	const l = loadLibrary();
+	// Load the N-row bin before the splice shrinks filenames; otherwise the
+	// lazy ensure would read the bin as N-1 rows and lose the last vector.
+	ensureLibraryBins();
 	const idx = l.filenames.indexOf(filename);
 	if (idx === -1) return false;
 	try {

@@ -7,6 +7,7 @@
 import { BrowserWindow } from "electron";
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import https from "node:https";
@@ -160,93 +161,165 @@ function resolveYtDlpFfmpegLocation() {
 	return null;
 }
 
+const YTDLP_VERSION_RE = /^\d{4}\.\d{2}\.\d{2}(?:\.\d+)?$/;
+const YTDLP_CHECKSUMS = "SHA2-256SUMS";
+const YTDLP_MIN_BYTES = 10 * 1024 * 1024;
+
+async function fetchYtDlpSha256(ver: string): Promise<string> {
+	const url = `${youtube.YTDLP_RELEASE_BASE}/${ver}/${YTDLP_CHECKSUMS}`;
+	const res = await fetch(url, {
+		headers: { "User-Agent": "SCM-youtube-agent" },
+		redirect: "follow",
+	});
+	if (!res.ok) throw new Error(`checksum http ${res.status}`);
+	const text = await res.text();
+	for (const line of text.split("\n")) {
+		const match = line.trim().match(/^([a-f0-9]{64})\s+\*?(.+)$/i);
+		if (match?.[1] && match[2]?.trim() === "yt-dlp_macos") {
+			return match[1].toLowerCase();
+		}
+	}
+	throw new Error(`checksum missing for yt-dlp_macos ${ver}`);
+}
+
 function downloadYtDlpBinary(version: unknown) {
 	// Fetch-on-first-use: keeps the DMG small; mirrors the weights/OCR-pack
-	// pattern. macOS universal asset; chmod +x on landing.
+	// pattern. macOS universal asset; chmod +x only after the SHA-256 in
+	// yt-dlp's own SHA2-256SUMS asset matches.
 	const ver =
 		typeof version === "string" && version
 			? version
 			: youtube.YTDLP_PINNED_VERSION;
+	if (!YTDLP_VERSION_RE.test(ver)) {
+		return Promise.resolve({
+			ok: false,
+			error: `invalid yt-dlp version: ${ver}`,
+		});
+	}
 	const asset = "yt-dlp_macos";
 	const url = `${youtube.YTDLP_RELEASE_BASE}/${ver}/${asset}`;
 	const dest = youtube.binPath();
-	return new Promise<{ ok: boolean; error?: string; path?: string }>(
-		(resolve) => {
-			try {
-				fs.mkdirSync(path.dirname(dest), { recursive: true });
-			} catch {
-				resolve({ ok: false, error: "mkdir failed" });
-				return;
-			}
-			const tryGet = (u: string, redirects: number) => {
-				try {
-					// Per-scheme pick: both node builtins, same request API.
-					const mod: typeof https | typeof http = u.startsWith("https:")
-						? https
-						: http;
-					const req = mod.get(
-						u,
-						{ headers: { "User-Agent": "SCM-youtube-agent" } },
-						(res: any) => {
-							if (
-								res.statusCode >= 300 &&
-								res.statusCode < 400 &&
-								res.headers.location &&
-								redirects > 0
-							) {
-								res.resume();
-								tryGet(res.headers.location, redirects - 1);
-								return;
-							}
-							if (res.statusCode !== 200) {
-								res.resume();
-								resolve({ ok: false, error: `http ${res.statusCode}` });
-								return;
-							}
-							const tmp = `${dest}.tmp-${process.pid}-${Date.now()}`;
-							const out = fs.createWriteStream(tmp, { mode: 0o755 });
-							res.pipe(out);
-							out.on("finish", () => {
-								out.close(() => {
-									try {
-										fs.chmodSync(tmp, 0o755);
-										fs.renameSync(tmp, dest);
-										resolve({ ok: true, path: dest });
-									} catch (err) {
-										resolve({
-											ok: false,
-											error: String(
-												(err as { message?: string }).message || err,
-											),
-										});
-									}
-								});
-							});
-							out.on("error", (err) => {
-								resolve({ ok: false, error: String(err.message || err) });
-							});
-						},
-					);
-					req.on("error", (err: { message?: string }) =>
-						resolve({ ok: false, error: String(err.message || err) }),
-					);
-					req.setTimeout(120000, () => {
-						try {
-							req.destroy(new Error("timeout"));
-						} catch {
-							/* settled */
-						}
-					});
-				} catch (err) {
-					resolve({
-						ok: false,
-						error: String((err as { message?: string }).message || err),
-					});
-				}
+	return (async () => {
+		let expected: string;
+		try {
+			expected = await fetchYtDlpSha256(ver);
+		} catch (err) {
+			return {
+				ok: false,
+				error: `checksum unavailable — refusing unverified download: ${
+					(err as { message?: string }).message || err
+				}`,
 			};
-			tryGet(url, 5);
-		},
-	);
+		}
+		return await new Promise<{ ok: boolean; error?: string; path?: string }>(
+			(resolve) => {
+				try {
+					fs.mkdirSync(path.dirname(dest), { recursive: true });
+				} catch {
+					resolve({ ok: false, error: "mkdir failed" });
+					return;
+				}
+				const tryGet = (u: string, redirects: number) => {
+					try {
+						// Per-scheme pick: both node builtins, same request API.
+						const mod: typeof https | typeof http = u.startsWith("https:")
+							? https
+							: http;
+						const req = mod.get(
+							u,
+							{ headers: { "User-Agent": "SCM-youtube-agent" } },
+							(res: any) => {
+								if (
+									res.statusCode >= 300 &&
+									res.statusCode < 400 &&
+									res.headers.location &&
+									redirects > 0
+								) {
+									res.resume();
+									tryGet(res.headers.location, redirects - 1);
+									return;
+								}
+								if (res.statusCode !== 200) {
+									res.resume();
+									resolve({ ok: false, error: `http ${res.statusCode}` });
+									return;
+								}
+								const tmp = `${dest}.tmp-${process.pid}-${Date.now()}`;
+								const out = fs.createWriteStream(tmp, { mode: 0o755 });
+								const hash = crypto.createHash("sha256");
+								res.on("data", (chunk: Buffer) => hash.update(chunk));
+								res.on("error", (err: Error) => {
+									try {
+										out.destroy();
+										fs.unlinkSync(tmp);
+									} catch {
+										/* best-effort */
+									}
+									resolve({ ok: false, error: String(err.message || err) });
+								});
+								res.pipe(out);
+								out.on("finish", () => {
+									out.close(() => {
+										try {
+											const size = fs.statSync(tmp).size;
+											if (size < YTDLP_MIN_BYTES) {
+												throw new Error(
+													`binary suspiciously small (${size} bytes)`,
+												);
+											}
+											const actual = hash.digest("hex");
+											if (actual !== expected) {
+												throw new Error("SHA-256 mismatch");
+											}
+											fs.chmodSync(tmp, 0o755);
+											fs.renameSync(tmp, dest);
+											resolve({ ok: true, path: dest });
+										} catch (err) {
+											try {
+												fs.unlinkSync(tmp);
+											} catch {
+												/* best-effort */
+											}
+											resolve({
+												ok: false,
+												error: String(
+													(err as { message?: string }).message || err,
+												),
+											});
+										}
+									});
+								});
+								out.on("error", (err) => {
+									try {
+										fs.unlinkSync(tmp);
+									} catch {
+										/* best-effort */
+									}
+									resolve({ ok: false, error: String(err.message || err) });
+								});
+							},
+						);
+						req.on("error", (err: { message?: string }) =>
+							resolve({ ok: false, error: String(err.message || err) }),
+						);
+						req.setTimeout(120000, () => {
+							try {
+								req.destroy(new Error("timeout"));
+							} catch {
+								/* settled */
+							}
+						});
+					} catch (err) {
+						resolve({
+							ok: false,
+							error: String((err as { message?: string }).message || err),
+						});
+					}
+				};
+				tryGet(url, 5);
+			},
+		);
+	})();
 }
 
 function enqueueYoutubeJob(kind: string, url: string, label?: string | null) {

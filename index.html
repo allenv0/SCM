@@ -5,14 +5,10 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>SCM</title>
 		<script src="/theme-bootstrap.js"></script>
-		<!-- CRT onboarding type (VT323 OSD / Space Mono display). Offline-safe:
-		     the onboarding CSS falls back to ui-monospace when unreachable. -->
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=VT323&display=swap"
-			rel="stylesheet"
-		/>
+		<!-- CRT onboarding type uses the local system monospace stack. The app
+		     is offline-first and its CSP pins font-src to 'self' data:, so no
+		     webfont is requested (a remote Google Fonts link was dead weight
+		     and logged a CSP violation on every launch). -->
 	</head>
 	<body>
 		<div id="root"></div>

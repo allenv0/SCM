@@ -701,9 +701,14 @@ async function calibrateThresholds(modelId: string) {
 // ghost entries cause endless "thumbnail failed" warnings and waste OCR
 // backfill cycles. Runs once on startup, before the backfill passes.
 // ---------------------------------------------------------------------------
-async function pruneStaleLibraryEntries() {
+async function pruneStaleLibraryEntries(): Promise<{
+	type: "prune-aborted";
+	missing: number;
+	total: number;
+} | null> {
 	const l = loadLibrary();
-	if (!l || !Array.isArray(l.filenames) || l.filenames.length === 0) return;
+	if (!l || !Array.isArray(l.filenames) || l.filenames.length === 0)
+		return null;
 	const total = l.filenames.length;
 	// First pass: count missing files. A mass-missing signal (the photos
 	// dir was emptied by a "cleaner", a volume is unmounted, a backup
@@ -717,24 +722,18 @@ async function pruneStaleLibraryEntries() {
 		if (!filename) continue;
 		if (!fs.existsSync(path.join(PHOTOS_DIR, filename))) missing++;
 	}
-	if (missing === 0) return;
+	if (missing === 0) return null;
 	const threshold = Math.max(1, Math.ceil(total / 2));
 	if (missing >= threshold) {
 		// Refuse to wipe: persist nothing, surface the state, let the user
 		// resolve the underlying cause (remount, restore, re-point) and
 		// retry on the next launch. This is the guard against the silent
-		// library wipe documented in C-05.
+		// library wipe documented in C-05. The caller hands this to
+		// protocol.ts so the warning survives until a renderer exists.
 		console.warn(
 			`[memories] stale-entry cleanup ABORTED: ${missing}/${total} photos missing (≥50%) — refusing to prune to avoid a silent library wipe`,
 		);
-		for (const win of BrowserWindow.getAllWindows()) {
-			win.webContents.send("memories:status", {
-				type: "prune-aborted",
-				missing,
-				total,
-			});
-		}
-		return;
+		return { type: "prune-aborted", missing, total };
 	}
 	let removed = 0;
 	// Walk backwards so splicing doesn't shift unvisited indices.
@@ -752,6 +751,7 @@ async function pruneStaleLibraryEntries() {
 			`[memories] stale-entry cleanup: removed ${removed} row(s) with missing files`,
 		);
 	}
+	return null;
 }
 
 // misaligned by a partial write is unusable too. Detect and re-embed those
@@ -1128,6 +1128,7 @@ const {
 	handleAppRequest,
 	buildApplicationMenu,
 	createWindow,
+	setPruneAbortedStatus,
 	WEB_PREFERENCES,
 } = require("./main/ipc/protocol.js");
 
@@ -1395,7 +1396,7 @@ if (!gotTheLock) {
 		// Remove library rows whose photo files no longer exist on disk
 		// (manual deletion, crash mid-dedupe, unwatched folder). Runs
 		// before backfills so ghost entries don't waste OCR/enrichment work.
-		await pruneStaleLibraryEntries();
+		setPruneAbortedStatus(await pruneStaleLibraryEntries());
 		// Existing libraries predate sourceMtimes. Populate this display-only
 		// metadata before the renderer's first index request, so All/File is
 		// correct immediately rather than only after a newly imported batch.

@@ -393,6 +393,12 @@ function ensureOcrWorker() {
 	} catch {
 		/* default above */
 	}
+	// The traineddata cache dir must exist before the worker starts:
+	// tesseract.js writes it with a bare fs.writeFile (no mkdir) and
+	// swallows the failure behind our no-op logger, so a missing dir meant
+	// every worker start silently re-downloaded ~17MB from the CDN and
+	// offline OCR never worked.
+	fs.mkdirSync(ocrDataDir(), { recursive: true });
 	worker.process = utilityProcess.fork(
 		path.join(__dirname, "..", "..", "..", "indexer", "ocr-worker.js"),
 		[],

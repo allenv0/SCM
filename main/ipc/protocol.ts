@@ -672,6 +672,26 @@ const CSP = [
 	"frame-ancestors 'none'",
 ].join("; ");
 
+type PruneAbortedStatus = {
+	type: "prune-aborted";
+	missing: number;
+	total: number;
+};
+
+// Boot-time prune runs before the first window exists. Keep the warning
+// here so createWindow can replay it on ready-to-show (after React has
+// subscribed to onStatus); a later prune (or a second window) also gets it
+// immediately.
+let pruneAbortedStatus: PruneAbortedStatus | null = null;
+
+export function setPruneAbortedStatus(status: PruneAbortedStatus | null): void {
+	pruneAbortedStatus = status;
+	if (!status) return;
+	for (const win of BrowserWindow.getAllWindows()) {
+		win.webContents.send("memories:status", status);
+	}
+}
+
 function createWindow({ showOnReady = true }: { showOnReady?: boolean } = {}) {
 	const win = new BrowserWindow({
 		width: 1280,
@@ -711,6 +731,12 @@ function createWindow({ showOnReady = true }: { showOnReady?: boolean } = {}) {
 			} catch {
 				/* leaving fullscreen is best-effort */
 			}
+		}
+		// The stale-entry guard runs before this window exists (see boot).
+		// Replay its warning on first paint, after React has subscribed to
+		// onStatus (did-finish-load can beat the effect that registers it).
+		if (pruneAbortedStatus) {
+			win.webContents.send("memories:status", pruneAbortedStatus);
 		}
 	});
 	// Model status can resolve before the renderer subscribes (cached model

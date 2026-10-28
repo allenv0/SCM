@@ -160,6 +160,17 @@ export async function runSmokeModes(deps: SmokeDeps): Promise<boolean> {
 		libraryIndex,
 		rankSearch,
 	} = deps;
+	// Pipe renderer console into the smoke log: renderer-side warnings
+	// ([ocr-search], [memory-search], React key errors) are invisible in
+	// headless runs — which is exactly where they are needed. Smoke-only:
+	// the production window never attaches this.
+	win?.webContents.on("console-message", (...args: unknown[]) => {
+		const ev = args[0] as { message?: string } | undefined;
+		const legacy =
+			typeof args[2] === "string" ? (args[2] as string) : undefined;
+		const msg = ev?.message ?? legacy ?? "";
+		if (msg) console.log(`[renderer] ${msg}`);
+	});
 	// Headless smoke mode: ELECTRON_SMOKE=1 verifies boot + protocol +
 	// renderer, then quits. With ELECTRON_SMOKE_E2E=1 it additionally
 	// imports two generated test photos through the real import path and

@@ -168,6 +168,15 @@ export default function App() {
 					duration: LONG_TOAST_MS,
 					tone: "warning",
 				});
+			} else if (payload.type === "prune-aborted") {
+				// A mass-missing library is almost always an unmounted volume
+				// or a half-restored backup. The main process refuses to prune;
+				// say so instead of leaving the user with a silently empty grid.
+				setToast({
+					message: `Library cleanup paused: ${payload.missing} of ${payload.total} files are missing. Nothing was deleted.`,
+					duration: LONG_TOAST_MS,
+					tone: "warning",
+				});
 			} else if (payload.type === "open-settings") {
 				// Menu-bar tray "Open Settings…": the window is already
 				// focused by main — just open the sheet.

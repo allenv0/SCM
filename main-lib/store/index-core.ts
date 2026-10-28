@@ -124,12 +124,65 @@ export interface Library {
 	embeddings: Float32Array[];
 	phrases: Float32Array[];
 	dim: number;
+	/** Row count in the index/bins as loaded from disk. */
+	diskRowCount: number;
+	/** Phrase table dimension from the on-disk header, before rows load. */
+	phraseDim: number;
 	textMean: Float32Array | null;
 	modelId: string;
 	pendingModelMigration: { fromId: string; targetId: string } | null;
 }
 
 let library: Library | null = null;
+// False until ensureLibraryBins() reads the primary/phrase rows. The getters
+// below make every legacy `l.embeddings` / `l.phrases` read load on demand,
+// so a metadata-only boot (timestamps, OCR, renderer index) never pages
+// hundreds of megabytes of vectors into main.
+let binsLoaded = false;
+
+export function libraryBinsLoaded(): boolean {
+	return binsLoaded;
+}
+
+export function ensureLibraryBins(): Library {
+	const l = loadLibrary();
+	if (binsLoaded) return l;
+	// Use the row count captured from the index, not the live filenames
+	// length: callers may mutate filenames before the first vector access
+	// (import appends, delete splices), and the disk bin still has the
+	// pre-mutation count.
+	const expected = l.diskRowCount;
+	if (l.pendingModelMigration || expected === 0 || l.dim <= 0) {
+		binsLoaded = true;
+		return l;
+	}
+	try {
+		const [embeddings, phrases] = bins.readLibraryBins(
+			l.modelId,
+			expected,
+			l.dim,
+		);
+		l.embeddings = embeddings;
+		l.phrases = phrases;
+		l.phraseDim = phrases.length === expected ? l.dim : 0;
+		if (embeddings.length !== expected) {
+			console.warn(
+				`[memories] embedding bin misaligned (${embeddings.length}/${expected}); starting fresh`,
+			);
+			l.embeddings = [];
+			l.phrases = [];
+			l.phraseDim = 0;
+		}
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		console.warn(`[memories] embedding bin load failed: ${msg}`);
+		l.embeddings = [];
+		l.phrases = [];
+		l.phraseDim = 0;
+	}
+	binsLoaded = true;
+	return l;
+}
 
 // Reads the per-model bin pair, falling back to the legacy pre-v4 names when
 // this model's own files don't exist yet (an upgrade from an old install: the
@@ -137,7 +190,7 @@ let library: Library | null = null;
 export function loadLibrary(): Library {
 	if (library) return library;
 	fs.mkdirSync(PHOTOS_DIR, { recursive: true });
-	library = {
+	const lib: Library = {
 		filenames: [],
 		sources: [],
 		sourceMtimes: [],
@@ -150,6 +203,8 @@ export function loadLibrary(): Library {
 		embeddings: [],
 		phrases: [],
 		dim: 0,
+		diskRowCount: 0,
+		phraseDim: 0,
 		textMean: null,
 		modelId: DEFAULT_MODEL_ID,
 		// Set only while an index references a retired or unknown vision
@@ -157,9 +212,38 @@ export function loadLibrary(): Library {
 		// id, so incompatible vectors can never be served as the replacement.
 		pendingModelMigration: null,
 	};
+	let currentEmbeddings = lib.embeddings;
+	let currentPhrases = lib.phrases;
+	Object.defineProperty(lib, "embeddings", {
+		enumerable: true,
+		configurable: true,
+		get() {
+			ensureLibraryBins();
+			return currentEmbeddings;
+		},
+		set(value: Float32Array[]) {
+			currentEmbeddings = value;
+			binsLoaded = true;
+		},
+	});
+	Object.defineProperty(lib, "phrases", {
+		enumerable: true,
+		configurable: true,
+		get() {
+			ensureLibraryBins();
+			return currentPhrases;
+		},
+		set(value: Float32Array[]) {
+			currentPhrases = value;
+			binsLoaded = true;
+		},
+	});
+	library = lib;
+	binsLoaded = false;
 	try {
 		const index = JSON.parse(fs.readFileSync(INDEX_FILE, "utf8"));
 		const images = Array.isArray(index.images) ? index.images : [];
+		library.diskRowCount = images.length;
 		const dim = Number(index.dim) || 0;
 		const storedModelId =
 			typeof index.modelId === "string" && index.modelId ? index.modelId : null;
@@ -276,23 +360,46 @@ export function loadLibrary(): Library {
 					? new Float32Array(index.textMean)
 					: null;
 			if (!library.pendingModelMigration) {
-				[library.embeddings, library.phrases] = bins.readLibraryBins(
-					library.modelId,
-					images.length,
-					dim,
-				);
-			}
-			if (library.embeddings.length !== images.length) {
-				console.warn(
-					`[memories] embedding bin misaligned (${library.embeddings.length}/${images.length}); starting fresh`,
-				);
-				library.embeddings = [];
-				library.phrases = [];
+				// Metadata only: probe headers, not rows. Mirror
+				// readLibraryBins' pairing rule so phraseDim describes the
+				// table a real load would actually use. The first rank/bin
+				// request calls ensureLibraryBins().
+				const primaryEmbed = bins.readBinHeader(embedFileFor(library.modelId));
+				let phraseHeader: { count: number; dim: number } | null = null;
+				if (
+					primaryEmbed &&
+					primaryEmbed.count === images.length &&
+					primaryEmbed.dim === dim
+				) {
+					phraseHeader = bins.readBinHeader(phraseFileFor(library.modelId));
+				} else {
+					const legacyEmbed = bins.readBinHeader(LEGACY_EMBED_FILE);
+					if (
+						legacyEmbed &&
+						legacyEmbed.count === images.length &&
+						legacyEmbed.dim === dim
+					) {
+						phraseHeader = bins.readBinHeader(LEGACY_PHRASE_FILE);
+					}
+				}
+				library.phraseDim =
+					phraseHeader &&
+					phraseHeader.count === images.length &&
+					phraseHeader.dim === dim
+						? dim
+						: 0;
 			}
 		}
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : String(err);
 		console.warn(`[memories] no library on disk (${msg}); starting fresh`);
+	}
+	if (
+		library.filenames.length === 0 ||
+		library.dim <= 0 ||
+		library.pendingModelMigration
+	) {
+		binsLoaded = true;
 	}
 	return library;
 }
@@ -316,7 +423,14 @@ export function libraryIndex(): {
 	textMean: number[] | undefined;
 } {
 	const l = loadLibrary();
-	const phraseDim = l.phrases.length === l.filenames.length ? l.dim : 0;
+	// Do not touch l.phrases here: the getter would defeat lazy load on every
+	// renderer index fetch. The header probe in loadLibrary already set the
+	// on-disk value; once rows are loaded, keep it in sync.
+	const phraseDim = libraryBinsLoaded()
+		? l.phrases.length === l.filenames.length
+			? l.dim
+			: 0
+		: l.phraseDim;
 	// Cast: the default id is always in the registry — the fallback can only
 	// miss when the registry itself lost the default (never).
 	const config =
@@ -419,6 +533,7 @@ export function bumpLibraryGeneration(): void {
 export function resetLibraryCaches(): void {
 	libraryGeneration++;
 	library = null;
+	binsLoaded = false;
 	sidecars.resetSidecarCaches();
 	bins.resetBinCaches();
 }

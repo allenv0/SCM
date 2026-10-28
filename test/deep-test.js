@@ -19,7 +19,9 @@
 //         phrase-bin heal, threshold calibration
 //
 // Must run with a temp MEMORIES_DATA_DIR (the smoke:deep script sets it and
-// symlinks the model cache + OCR traineddata for offline reuse).
+// symlinks the model cache; OCR traineddata is seeded only when the host has
+// any — otherwise the first OCR downloads it and the cache check below
+// asserts it was actually persisted).
 
 const path = require("path");
 const fs = require("fs");
@@ -383,6 +385,18 @@ async function runDeepTest(ctx) {
 					`screenshot OCR missing ${w}: ${JSON.stringify(scrRow)}`,
 				);
 		}
+	});
+	check("OCR: traineddata cached under ocr-data (offline reuse)", () => {
+		// The battery deliberately does NOT pre-create ocr-data/ (that used
+		// to mask the pump never creating it — every worker start silently
+		// re-downloaded ~17MB and offline OCR never worked). After a drained
+		// OCR queue the cache must exist and hold the language data.
+		const dir = path.join(process.env.MEMORIES_DATA_DIR, "ocr-data");
+		const cached = fs.existsSync(dir)
+			? fs.readdirSync(dir).filter((f) => f.endsWith(".traineddata"))
+			: [];
+		if (cached.length === 0)
+			throw new Error(`no *.traineddata cached in ${dir}`);
 	});
 	check("segments: every video enriched, scene-clip has ≥3 shots", () => {
 		const c = ctx.loadSegments(modelId);
@@ -1210,12 +1224,32 @@ async function runDeepTest(ctx) {
 				input.dispatchEvent(new Event('input', { bubbles: true }));
 				const t0 = Date.now();
 				let found = false;
+				let lastAlts = [];
 				while (Date.now() - t0 < 10000) {
 					await sleep(200);
-					const alts = [...document.querySelectorAll('img[alt]')].map((i) => i.getAttribute('alt') || '');
-					if (alts.length > 0 && alts.every((a) => a.includes('scr-settings'))) { found = true; break; }
+					lastAlts = [...document.querySelectorAll('img[alt]')].map((i) => i.getAttribute('alt') || '');
+					if (lastAlts.length > 0 && lastAlts.every((a) => a.includes('scr-settings'))) { found = true; break; }
 				}
-				if (!found) return { error: 'OCR mode did not surface scr-settings' };
+				if (!found) {
+					// search-matrix-style self-diagnosis: distinguish "the
+					// served index lacks the text" from "the renderer dropped
+					// results", and record what the grid actually showed.
+					// Encoded into the error string — checkAsync surfaces
+					// only err.message.
+					const idx = await fetch('/memories-index.json').then((r) => r.json()).catch(() => null);
+					const scrRow = idx && Array.isArray(idx.ocr)
+						? idx.ocr[(idx.images || []).indexOf('scr-settings.png')]
+						: '(no index)';
+					return {
+						error: 'OCR mode did not surface scr-settings ' + JSON.stringify({
+							alts: lastAlts.slice(0, 8),
+							ocrBtn: ocrBtn.outerHTML.slice(0, 140),
+							servedSettingsText: typeof scrRow === 'string' ? scrRow.slice(0, 60) : String(scrRow),
+							servedOcrRevision: idx ? idx.ocrRevision : null,
+							bodyText: (document.body.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 220),
+						}),
+					};
+				}
 				// Negative: 'unplayable' exists ONLY in a filename — OCR mode must find nothing.
 				setter.call(input, 'unplayable');
 				input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1389,20 +1423,33 @@ async function runDeepTest(ctx) {
 				setter.call(input, 'settings');
 				input.dispatchEvent(new Event('input', { bubbles: true }));
 				const t0 = Date.now();
+				let lastAlts = [];
 				while (Date.now() - t0 < 10000) {
 					await sleep(200);
-					const alts = [...document.querySelectorAll('img[alt]')].map((i) => i.getAttribute('alt') || '');
-					if (alts.some((a) => a.includes('scr-settings'))) {
+					lastAlts = [...document.querySelectorAll('img[alt]')].map((i) => i.getAttribute('alt') || '');
+					if (lastAlts.some((a) => a.includes('scr-settings'))) {
 						setter.call(input, '');
 						input.dispatchEvent(new Event('input', { bubbles: true }));
 						const filesBtn = document.querySelector('button[aria-label="File search mode"]');
 						if (filesBtn) filesBtn.click();
 						const all = tabByText('All');
 						if (all) all.click();
-						return { ok: true, alts };
+						return { ok: true, alts: lastAlts };
 					}
 				}
-				return { error: 'OCR under Videos never surfaced scr-settings (filter not snapped)' };
+				const idx = await fetch('/memories-index.json').then((r) => r.json()).catch(() => null);
+				const scrRow = idx && Array.isArray(idx.ocr)
+					? idx.ocr[(idx.images || []).indexOf('scr-settings.png')]
+					: '(no index)';
+				return {
+					error: 'OCR under Videos never surfaced scr-settings (filter not snapped) ' + JSON.stringify({
+						alts: lastAlts.slice(0, 8),
+						ocrBtn: ocrBtn.outerHTML.slice(0, 140),
+						servedSettingsText: typeof scrRow === 'string' ? scrRow.slice(0, 60) : String(scrRow),
+						servedOcrRevision: idx ? idx.ocrRevision : null,
+						bodyText: (document.body.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 220),
+					}),
+				};
 			})()
 		`);
 			if (out.error) throw new Error(out.error);

@@ -1,6 +1,6 @@
 {
 	"name": "scm",
-	"version": "0.2.12",
+	"version": "0.2.13",
 	"private": true,
 	"license": "MIT",
 	"description": "SCM: local-first photo & video search (vision, scenes, OCR, dialogue)",
@@ -14,6 +14,7 @@
 		"sharp": "0.35.5"
 	},
 	"scripts": {
+		"postinstall": "node scripts/ensure-electron.js",
 		"build": "vite build && bun run build:main",
 		"build:main": "tsc -p tsconfig.main.json && node scripts/copy-main-assets.js",
 		"watch:main": "tsc -p tsconfig.main.json --watch",
@@ -41,8 +42,11 @@
 		"test:child-registry": "bun run test/child-registry.test.js",
 		"test:ask": "bun test test/ask-models.test.js && bun run test/ask-retrieve.test.js && bun test test/ask-server.test.js && bun test test/ask-scope.test.ts",
 		"test:import-order": "bun run test/import-order.test.js",
+		"test:ocr-tab-ready": "bun run test/ocr-tab-ready.test.js",
 		"test:mime-sniff": "bun run test/mime-sniff.test.js",
 		"test:packaged-files": "bun run test/packaged-files.test.js",
+		"test:packaged-size": "node scripts/check-package-size.js",
+		"test:audit-runtime": "bun scripts/audit-runtime.js",
 		"test:main-load": "node test/main-load.test.js",
 		"test:ipc-bridge": "node test/ipc-bridge.test.js",
 		"test:token-parity": "bun test test/token-parity.test.ts",
@@ -81,7 +85,7 @@
 		"@types/react-dom": "^19.0.0",
 		"@vitejs/plugin-react": "^4.3.4",
 		"autoprefixer": "^10.4.19",
-		"electron": "^43.7.11",
+		"electron": "^43.8.1",
 		"electron-builder": "^26.15.3",
 		"eslint": "^10.10.0",
 		"eslint-plugin-react-hooks": "^7.1.1",
@@ -106,8 +110,11 @@
 			"dist/**",
 			"dist-main/**",
 			"package.json",
+			"!node_modules/@huggingface/transformers/.cache/**",
+			"!node_modules/onnxruntime-web/**",
 			"!node_modules/@huggingface/transformers/dist/**/*.map"
 		],
+		"afterPack": "scripts/after-pack.js",
 		"asarUnpack": [
 			"node_modules/sharp/**",
 			"node_modules/@img/**",
@@ -130,7 +137,13 @@
 				"zip"
 			],
 			"category": "public.app-category.photography",
-			"icon": "public/images/icns/SCM.icns"
+			"icon": "public/images/icns/SCM.icns",
+			"extendInfo": {
+				"NSAppTransportSecurity": {
+					"NSAllowsArbitraryLoads": false,
+					"NSAllowsLocalNetworking": true
+				}
+			}
 		},
 		"dmg": {
 			"title": "SCM"

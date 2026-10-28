@@ -1,5 +1,7 @@
 // Phase 2 (store): facade over main-lib/store/*.ts — the public surface is
-// byte-identical to the old monolith (same 49 exports, same behavior).
+// byte-identical to the old monolith (same 49 exports, same behavior) plus
+// the lazy-bin helpers (`ensureLibraryBins` / `libraryBinsLoaded`) used by
+// mutation sites that must materialize rows before changing filenames.
 // test/library-store.test.js requires this path unchanged.
 //
 // The per-name `exports.*` assignments of the CJS facade became grouped
@@ -20,6 +22,8 @@ export {
 	thumbFor,
 	loadSampleQueries,
 	loadLibrary,
+	ensureLibraryBins,
+	libraryBinsLoaded,
 	libraryIndex,
 	fileMtimeMs,
 	backfillSourceMtimes,

@@ -34,6 +34,41 @@ export function readLibraryBins(
 	];
 }
 
+// Header-only probe for load-time metadata: avoids paging a multi-hundred-
+// megabyte bin into memory just to learn whether a phrase table is aligned.
+export function readBinHeader(
+	file: string,
+): { count: number; dim: number } | null {
+	try {
+		const fd = fs.openSync(file, "r");
+		try {
+			const buf = Buffer.alloc(8);
+			if (fs.readSync(fd, buf, 0, 8, 0) !== 8) return null;
+			const count = buf.readInt32LE(0);
+			const dim = buf.readInt32LE(4);
+			if (
+				!Number.isInteger(count) ||
+				count < 0 ||
+				count >= 1_000_000 ||
+				(count > 0 && (!Number.isInteger(dim) || dim <= 0 || dim >= 8192))
+			) {
+				return null;
+			}
+			// A valid header is not enough: a crash/partial copy can leave a
+			// truncated tail. Only report the dimension when the file holds
+			// every declared row, or libraryIndex would advertise a phrase
+			// table that the first real read will discard. Trailing bytes are
+			// tolerated, matching decodeBinRows.
+			if (fs.fstatSync(fd).size < 8 + count * dim * 4) return null;
+			return { count, dim };
+		} finally {
+			fs.closeSync(fd);
+		}
+	} catch {
+		return null;
+	}
+}
+
 export function readBin(
 	file: string,
 	count: number,

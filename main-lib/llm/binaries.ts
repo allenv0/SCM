@@ -164,7 +164,12 @@ async function streamToFile(
 
 export async function resolveReleaseAsset(): Promise<{
 	tag: string;
-	asset: { name: string; browser_download_url: string };
+	asset: {
+		name: string;
+		browser_download_url: string;
+		/** GitHub's upload digest, `sha256:<hex>`, when the release has one. */
+		digest?: string | null;
+	};
 }> {
 	const base = `https://api.github.com/repos/${LLM_SERVER.repo}`;
 	const fetchRelease = async (path: string): Promise<any> => {
@@ -230,6 +235,12 @@ interface DownloadOptions {
 	signal?: AbortSignal | null;
 }
 
+function githubDigestSha256(digest: unknown): string | null {
+	if (typeof digest !== "string") return null;
+	const match = digest.match(/^sha256:([0-9a-f]{64})$/i);
+	return match?.[1] ? match[1].toLowerCase() : null;
+}
+
 // One llama.cpp release archive → bin/llama-server. Extracted with the
 // system unzip / bsdtar (no npm dep — upstream ships both formats), the
 // entry binary ad-hoc signed (arm64 refuses to exec unsigned code), and
@@ -252,7 +263,7 @@ export async function downloadBinary({
 		`extract-${crypto.randomBytes(4).toString("hex")}`,
 	);
 	try {
-		const { received } = await streamToFile(
+		const { received, sha256 } = await streamToFile(
 			asset.browser_download_url,
 			archivePath,
 			{
@@ -269,6 +280,18 @@ export async function downloadBinary({
 					),
 			},
 		);
+		// GitHub publishes the upload digest on newer release assets. Verify
+		// it when present; an absent digest falls back to the size floor
+		// (older releases predate the field).
+		const expected = githubDigestSha256(asset.digest);
+		if (expected && sha256 !== expected) {
+			try {
+				fs.unlinkSync(archivePath);
+			} catch {
+				/* best-effort: a resumed prefix must not survive a mismatch */
+			}
+			throw new Error("binary archive SHA-256 mismatch");
+		}
 		if (
 			received <
 			(LLM_SERVER.minimumArchiveBytes || LLM_SERVER.minimumBinaryBytes || 1)

@@ -212,6 +212,13 @@ export type StatusPayload =
 			attempted: number;
 	  }
 	| {
+			type: "prune-aborted";
+			/** Library rows whose photo file is missing. */
+			missing: number;
+			/** Total library rows examined. */
+			total: number;
+	  }
+	| {
 			type: "ocr";
 			phase: OcrPhase;
 			/** The photo currently being recognized (active phases only). */

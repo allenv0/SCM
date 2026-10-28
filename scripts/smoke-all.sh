@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# Super-ultra-deep verification battery: every smoke mode in the repo, each
-# isolated in its own temp data dir (model cache + OCR traineddata symlinked
-# for offline reuse). Fail-fast on any suite.
+# Super-ultra-deep verification battery: the core fail/pass smoke modes, each
+# isolated in its own temp data dir (model cache symlinked in; OCR traineddata
+# seeded only when the host has any — the first OCR downloads it, and the deep
+# smoke then asserts it was actually cached). Every suite runs; the script
+# exits non-zero if any failed (per-suite tails stay visible in the log).
 #
-#   unit:    scene-planning math
-#   smoke:   indexer worker (real SigLIP-2 embeds)
+#   unit:    full bun:test suite (test/) + curated node-style harnesses
+#   smoke:   indexer worker (default CLIP ViT-L/14@336 embeds)
 #   electron: e2e import + ranking (warm), then cold-restart persistence
 #   electron: phase4 — scene pipeline + OCR + migration backfill + trays
 #   electron: deep — the full-feature battery (33-file library, every UI)
+#   electron: scenenoise — gibberish queries on a movie-heavy library
 #   electron: model migration round-trip + preload-all
 #   electron: re-import skip semantics
 #   electron: watched-folder auto-watch (persist + live sync + launch sync)
@@ -15,6 +18,16 @@
 #   electron: rename dedupe (renamed file skipped by content hash)
 #   electron: youtube (offline fixtures: merge, info-lookup, backfill, silent repair)
 #   electron: reveal-target resolution (source → library copy → null)
+#   electron: cto — Week-1 fixes (prune guard, bin quarantine, atomic saves, sandbox, CSP, rank perf)
+#   electron: grid — 50k-row virtualization
+#   electron: llms — Settings click-path (self-skips while parked)
+#
+# Manual probes deliberately NOT in this battery (they need a real-library
+# copy, or are benchmarks / screenshot reviews — see package.json smoke:*):
+#   ELECTRON_SMOKE_OCR_HIGHLIGHT   scripts/e2e/ocr-highlight.js
+#   ELECTRON_SMOKE_SEARCH_MATRIX   scripts/e2e/search-matrix.js
+#   ELECTRON_SMOKE_UI_REVIEW       scripts/e2e/ui-review.js  (smoke:ui-review)
+#   ELECTRON_SMOKE_PERF            test/perf-test.js         (smoke:perf)
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -30,17 +43,31 @@ STEP_NAME=""
 step() { STEP_NAME="$1"; echo ""; echo "=== $1 ===" | tee -a "$LOG"; }
 note() { echo "    $1" | tee -a "$LOG"; }
 
-# Fresh temp data dir with the model cache + OCR traineddata symlinked in.
-# Whatever language files are present land in the scratch dir (eng + CJK at
-# minimum); anything missing downloads on demand inside the smoke.
+# Scratch-dir tracking (file-based: setup_tmp/new_dir run inside command
+# substitution subshells, so a shell variable would not survive). On a green
+# run every dir is removed; a failed run keeps them all for post-mortem.
+TMP_LIST="$(mktemp /tmp/scm-battery-dirs-XXXX)"
+trap 'rm -f "$TMP_LIST"' EXIT
+new_dir() {
+	local d
+	d="$(mktemp -d "/tmp/${1}-XXXX")"
+	echo "$d" >>"$TMP_LIST"
+	echo "$d"
+}
+
+# Fresh temp data dir with the model cache symlinked in (created on demand —
+# a cold machine would otherwise get a dangling symlink). OCR traineddata is
+# seeded ONLY when the host has files: pre-creating an empty ocr-data/ would
+# mask the app's own cache-dir setup, which the deep smoke asserts.
 setup_tmp() {
 	local prefix="$1"
 	local tmp
-	tmp="$(mktemp -d "/tmp/${prefix}-XXXX")"
+	tmp="$(new_dir "$prefix")"
+	[ -d "$MODELS" ] || mkdir -p "$MODELS"
 	ln -s "$MODELS" "$tmp/models"
-	mkdir -p "$tmp/ocr-data"
 	for f in "$OCR_DATA"/*.traineddata; do
 		[ -e "$f" ] || continue
+		[ -d "$tmp/ocr-data" ] || mkdir -p "$tmp/ocr-data"
 		ln -s "$f" "$tmp/ocr-data/"
 	done
 	echo "$tmp"
@@ -67,6 +94,9 @@ electron_run() {
 
 step "build: renderer bundle (smokes run electron ., which serves dist/)"
 bun run build >>"$LOG" 2>&1 || { tail -25 "$LOG"; FAILED=1; }
+
+step "unit: full bun:test suite (test/ — node-style harnesses included)"
+bun test test/ >>"$LOG" 2>&1 || { tail -25 "$LOG"; FAILED=1; }
 
 step "unit: scene-planning math"
 bun run test:planning >>"$LOG" 2>&1 || { tail -25 "$LOG"; FAILED=1; }
@@ -117,8 +147,8 @@ step "unit: Ask mode (LLM registry, evidence retrieval, sidecar lifecycle, scope
 bun run test:ask >>"$LOG" 2>&1 || { tail -25 "$LOG"; FAILED=1; }
 
 step "electron: llms — Settings UI click-path, downloaded states, evidence gate (self-skips while parked)"
-TMP13=$(mktemp -d "/tmp/scm-ask-e2e-XXXX")
-ELECTRON_SMOKE_ASK=1 MEMORIES_DATA_DIR="$TMP13" "$ROOT/node_modules/.bin/electron" . >>"$LOG" 2>&1 || { tail -25 "$LOG"; FAILED=1; }
+TMP13=$(new_dir scm-ask-e2e)
+electron_run "$TMP13" ELECTRON_SMOKE_ASK=1 || FAILED=1
 
 step "unit: OCR CJK languages (worker filter/join, settings, langs wiring)"
 bun run test/ocr-cjk.test.js >>"$LOG" 2>&1 || { tail -25 "$LOG"; FAILED=1; }
@@ -155,12 +185,12 @@ electron_run "$TMP4" ELECTRON_SMOKE_MIGRATE=1 || FAILED=1
 
 step "electron: re-import skip semantics"
 TMP5=$(setup_tmp scm-reimport)
-REIMPORT_TEST_DIR="$(mktemp -d /tmp/scm-reimport-src-XXXX)"
+REIMPORT_TEST_DIR="$(new_dir scm-reimport-src)"
 electron_run "$TMP5" ELECTRON_SMOKE_REIMPORT=1 REIMPORT_TEST_DIR="$REIMPORT_TEST_DIR" || FAILED=1
 
 step "electron: watched-folder — import a folder, auto-watch it, live-sync"
 TMP8=$(setup_tmp scm-watched)
-WATCH_TEST_DIR="$(mktemp -d /tmp/scm-watch-src-XXXX)"
+WATCH_TEST_DIR="$(new_dir scm-watch-src)"
 electron_run "$TMP8" ELECTRON_SMOKE_WATCHED=import WATCH_TEST_DIR="$WATCH_TEST_DIR" || FAILED=1
 
 step "electron: watched-folder — launch sync imports the new file (same data dir)"
@@ -168,12 +198,12 @@ electron_run "$TMP8" ELECTRON_SMOKE_WATCHED=sync WATCH_TEST_DIR="$WATCH_TEST_DIR
 
 step "electron: failure cache — poison file retried 3×, then skipped until changed"
 TMP9=$(setup_tmp scm-failcache)
-FAILCACHE_TEST_DIR="$(mktemp -d /tmp/scm-failcache-src-XXXX)"
+FAILCACHE_TEST_DIR="$(new_dir scm-failcache-src)"
 electron_run "$TMP9" ELECTRON_SMOKE=1 ELECTRON_SMOKE_FAILCACHE=1 FAILCACHE_TEST_DIR="$FAILCACHE_TEST_DIR" || FAILED=1
 
 step "electron: rename dedupe — renamed file skipped by content hash"
 TMP10=$(setup_tmp scm-renamededupe)
-RENAMEDEDUPE_TEST_DIR="$(mktemp -d /tmp/scm-renamededupe-src-XXXX)"
+RENAMEDEDUPE_TEST_DIR="$(new_dir scm-renamededupe-src)"
 electron_run "$TMP10" ELECTRON_SMOKE=1 ELECTRON_SMOKE_RENAMEDEDUPE=1 RENAMEDEDUPE_TEST_DIR="$RENAMEDEDUPE_TEST_DIR" || FAILED=1
 
 step "electron: youtube — merge, info-lookup, backfill, silent-repair, archive-clear (offline fixtures)"
@@ -182,7 +212,7 @@ electron_run "$TMP14" ELECTRON_SMOKE=1 ELECTRON_SMOKE_YOUTUBE=1 || FAILED=1
 
 step "electron: reveal-target resolution (source → copy → null)"
 TMP6=$(setup_tmp scm-reveal)
-REVEAL_DIR="$(mktemp -d /tmp/scm-reveal-src-XXXX)"
+REVEAL_DIR="$(new_dir scm-reveal-src)"
 electron_run "$TMP6" ELECTRON_SMOKE_REVEAL=import REVEAL_TEST_DIR="$REVEAL_DIR" || FAILED=1
 mv "$REVEAL_DIR/source/fallback-test.jpg" "$REVEAL_DIR/source/moved-away.jpg"
 electron_run "$TMP6" ELECTRON_SMOKE_REVEAL=verify REVEAL_TEST_DIR="$REVEAL_DIR" || FAILED=1
@@ -199,7 +229,14 @@ electron_run "$TMP12" ELECTRON_SMOKE=1 ELECTRON_SMOKE_GRID=1 || FAILED=1
 echo "" | tee -a "$LOG"
 if [ "$FAILED" -eq 0 ]; then
 	echo "ALL SMOKES PASSED — full log: $LOG" | tee -a "$LOG"
+	# Green run: leave nothing behind. A failed run keeps every scratch dir
+	# (each electron_run tails its step into the log before we get here).
+	while read -r d; do
+		[ -n "$d" ] && rm -rf "$d"
+	done <"$TMP_LIST"
 else
 	echo "SOME SMOKES FAILED — full log: $LOG" | tee -a "$LOG"
+	echo "scratch dirs kept for debugging:" | tee -a "$LOG"
+	cat "$TMP_LIST" | tee -a "$LOG"
 	exit 1
 fi

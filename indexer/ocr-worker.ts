@@ -17,6 +17,7 @@
 // standalone: `node indexer/ocr-worker.js --smoke <imagePath> [--langs ...]`
 // prints the recognized text and exits.
 
+import fs from "node:fs";
 import { createWorker } from "tesseract.js";
 import { assertNever } from "../main-lib/assert-never.ts";
 
@@ -385,6 +386,13 @@ export function normalizeWords(
 async function ensureWorker() {
 	if (worker) return worker;
 	const langs = currentOcrLangs();
+	// Defense in depth: the pump mkdirs OCR_DATA_DIR before forking us, but
+	// the standalone `--smoke` path (and any future spawner) must not lose
+	// the cache either — tesseract's cache write is a bare fs.writeFile,
+	// which neither creates the dir nor surfaces the failure.
+	if (process.env.OCR_DATA_DIR) {
+		fs.mkdirSync(process.env.OCR_DATA_DIR, { recursive: true });
+	}
 	worker = (await createWorker(langs, 1, {
 		// *.traineddata lands here once (first OCR ever); every later run
 		// reads it from disk — fully offline after the first download.

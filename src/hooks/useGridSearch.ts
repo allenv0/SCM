@@ -27,6 +27,10 @@ export interface GridSearchSource {
 	searchKeyword: (query: string, topK: number) => RankedMemory[];
 	/** Synchronous OCR-text ranking (OCR mode). */
 	searchOcr: (query: string, topK: number) => RankedMemory[];
+	/** True once the index (OCR texts included) has committed after the
+	 *  latest invalidation; false while wiped, loading, or failed. Drives
+	 *  the OCR re-run effect below. */
+	indexReady: boolean;
 	/** LLMs mode question → gated answer + evidence rows. */
 	ask: (query: string, filenames: string[]) => Promise<AskResult | null>;
 	/** Cancel an in-flight LLMs question (query cleared). */
@@ -44,6 +48,7 @@ export function useGridSearch(
 		searchDialogue,
 		searchKeyword,
 		searchOcr,
+		indexReady,
 		ask,
 		clearAsk,
 	} = source;
@@ -210,6 +215,29 @@ export function useGridSearch(
 		ask,
 		clearAsk,
 	]);
+
+	// OCR re-run when the index lands. searchOcr ranks synchronously against
+	// the renderer's OCR-texts ref, which every library-updated invalidation
+	// wipes to null and the next index commit refills ~150ms+fetch later. A
+	// query typed in that window ranked against null and returned [] — and
+	// nothing re-ran it (this hook's deps never change on a commit), so the
+	// tab stayed empty claiming "no matching text" for text that exists.
+	// Re-rank when readiness flips true. Deliberately a NO-OP on false:
+	// during the wipe→refill window the stale-but-real results stay visible
+	// instead of flashing empty on every OCR/enrichment tick, and the main
+	// effect above keeps its own deps so other modes never re-dispatch here.
+	useEffect(() => {
+		if (!indexReady) return;
+		const trimmed = query.trim();
+		if (!ocrMode || !trimmed) return;
+		searchSeqRef.current++;
+		// Deliberately synchronous, same as the OCR dispatch in the main
+		// effect above: the tab's contract is results the moment the query
+		// lands, and the ranked array is already final (nothing awaits).
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setSearchResults(searchOcr(trimmed, searchTopK));
+		setSemanticPending(false);
+	}, [indexReady, ocrMode, query, searchOcr, searchTopK]);
 
 	return {
 		query,

@@ -10,6 +10,8 @@ import * as modelState from "./model-state.ts";
 
 let persistQueue: Promise<unknown> = Promise.resolve();
 let persistSeq = 0;
+let warnedLazyBins = false;
+let warnedLazyDrift = false;
 
 export function enqueuePersist<T>(fn: () => T | Promise<T>): Promise<T> {
 	const run = persistQueue.then(fn);
@@ -74,6 +76,53 @@ export async function saveLibrary(): Promise<void> {
 	// recoverable old index with an empty target-model bin. The migration
 	// clears this guard immediately before its final atomic save.
 	if (l.pendingModelMigration) return;
+	// A lazy library whose filenames no longer match the index it was loaded
+	// from is mid-mutation. Writing that index now would pair new filenames
+	// with the old bin row count; let the mutation finish (it materializes
+	// the bins) and retry on the next save.
+	if (!indexCore.libraryBinsLoaded() && l.filenames.length !== l.diskRowCount) {
+		if (!warnedLazyDrift) {
+			warnedLazyDrift = true;
+			console.warn(
+				`[memories] library save deferred: ${l.filenames.length} filenames vs ${l.diskRowCount} on-disk rows while bins are lazy`,
+			);
+		}
+		return;
+	}
+	// A metadata-only save must never overwrite healthy on-disk vectors with
+	// the empty arrays a failed/misaligned bin read leaves in memory. This is
+	// the failure mode that turns one bad read into permanent data loss:
+	// loadLibrary sets embeddings=[] and the next timestamp/OCR save encodes
+	// that empty table over the only copy. Keep the old bins and persist only
+	// index metadata; the next successful embed/rebuild owns the bin write.
+	const rowsLoaded = indexCore.libraryBinsLoaded();
+	const binsReady =
+		rowsLoaded &&
+		(l.filenames.length === 0 ||
+			(l.dim > 0 && l.embeddings.length === l.filenames.length));
+	if (!binsReady) {
+		if (rowsLoaded) {
+			console.warn(
+				`[memories] library save preserved on-disk bins (${l.embeddings.length}/${l.filenames.length} rows, dim ${l.dim}); writing metadata only`,
+			);
+		} else if (!warnedLazyBins) {
+			warnedLazyBins = true;
+			console.warn(
+				`[memories] library save kept bins lazy (${l.filenames.length} rows, dim ${l.dim}); writing metadata only`,
+			);
+		}
+		try {
+			const indexJson = JSON.stringify(indexCore.libraryIndex());
+			await enqueuePersist(async () => {
+				await writeFileAtomic(indexCore.INDEX_FILE, indexJson);
+				indexCore.bumpLibraryGeneration();
+			});
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			console.warn(`[memories] metadata-only library save failed: ${msg}`);
+		}
+		return;
+	}
 	let indexJson;
 	let embBuf;
 	let phrBuf;

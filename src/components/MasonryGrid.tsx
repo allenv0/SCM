@@ -224,6 +224,7 @@ function MasonryGrid({
 		isSearching,
 		error: searchError,
 		sceneDataReady,
+		isReady: indexReady,
 		models,
 		activeModelId,
 		migration,
@@ -276,6 +277,7 @@ function MasonryGrid({
 			searchDialogue,
 			searchKeyword,
 			searchOcr,
+			indexReady,
 			ask,
 			clearAsk,
 		},
@@ -1334,7 +1336,9 @@ function MasonryGrid({
 							? ocrMode
 								? ocrBusy
 									? "Text is still being read in the background — try again shortly."
-									: `No images with matching text for “${query.trim()}”.`
+									: !indexReady
+										? "The text index is still loading — try again in a moment."
+										: `No images with matching text for “${query.trim()}”.`
 								: sceneMode
 									? sceneDataReady
 										? `No scene matches for “${query.trim()}”. Try a different description.`
