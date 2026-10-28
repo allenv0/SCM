@@ -199,7 +199,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Restore model cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/Library/Application Support/scm/models
           key: ${{ runner.os }}-scm-models-${{ hashFiles('indexer/models.ts', 'bun.lock') }}
@@ -251,7 +251,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Restore model cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           # scripts/smoke-all.sh symlinks exactly this path into every
           # suite's temp data dir; a cold cache just downloads on demand.
