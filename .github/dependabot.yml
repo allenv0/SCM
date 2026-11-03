@@ -1,11 +1,12 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
+  # The project is Bun-managed (`bun.lock`). The npm ecosystem cannot update
+  # bun.lock; Dependabot's `bun` ecosystem can.
+  - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
-    versioning-strategy: "increase"
     groups:
       runtime-minor-patch:
         patterns:
