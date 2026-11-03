@@ -54,7 +54,7 @@ jobs:
       - name: Guard the public tree boundary
         if: github.repository == 'allenv0/SCM'
         run: |
-          leaks="$(git ls-files | grep -E '^(MDs/|AGENTS\.md$|SYNCING\.md$|RELEASING\.md$|COMMANDS\.md$|assets/|review-screenshots/|eng\.traineddata$|\.tools/|photokit/|docs/(ts-migration|dev-doc|effect-adoption-report)\.md$|scripts/(mlx-sidecar/|sync-public\.sh$|coreml/fixtures/images/))' || true)"
+          leaks="$(git ls-files | grep -E '^(\.github/dependabot\.yml$|MDs/|AGENTS\.md$|SYNCING\.md$|RELEASING\.md$|COMMANDS\.md$|assets/|review-screenshots/|eng\.traineddata$|\.tools/|photokit/|docs/(ts-migration|dev-doc|effect-adoption-report)\.md$|scripts/(mlx-sidecar/|sync-public\.sh$|coreml/fixtures/images/))' || true)"
           if [ -n "$leaks" ]; then
             printf '::error::dev-only paths must not be in the public tree:%s\n' "$leaks"
             exit 1
